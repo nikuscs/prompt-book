@@ -10,13 +10,34 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "appsdesktop-tauri",
+        "label": "main",
+        "title": "PromptBook",
         "width": 980,
         "height": 660,
         "minWidth": 860,
-        "minHeight": 560
+        "minHeight": 560,
+        "visible": false,
+        "decorations": true,
+        "transparent": true,
+        "shadow": true,
+        "hiddenTitle": true,
+        "titleBarStyle": "Transparent"
+      },
+      {
+        "label": "menubar",
+        "title": "PromptBook Menu",
+        "width": 360,
+        "height": 400,
+        "resizable": false,
+        "visible": false,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": true,
+        "skipTaskbar": true,
+        "shadow": false
       }
     ],
     "security": {

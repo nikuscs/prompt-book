@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Check, Copy, Expand } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +48,12 @@ function App() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(seedPrompts[0].id);
   const [mode, setMode] = useState<"raw" | "preview">("raw");
+  const [windowLabel, setWindowLabel] = useState("main");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setWindowLabel(getCurrentWindow().label);
+  }, []);
 
   const selectedPrompt = prompts.find((p) => p.id === selectedId) ?? prompts[0];
   const filteredPrompts = useMemo(() => {
@@ -68,26 +76,97 @@ function App() {
     );
   };
 
-  const copyPrompt = async () => {
-    await navigator.clipboard.writeText(selectedPrompt.content);
-    setPrompts((prev) => prev.map((p) => (p.id === selectedPrompt.id ? { ...p, copied: p.copied + 1 } : p)));
+  const copyPrompt = async (prompt = selectedPrompt) => {
+    await navigator.clipboard.writeText(prompt.content);
+    setCopiedId(prompt.id);
+    setPrompts((prev) => prev.map((p) => (p.id === prompt.id ? { ...p, copied: p.copied + 1 } : p)));
+    setTimeout(() => setCopiedId((id) => (id === prompt.id ? null : id)), 1000);
   };
 
-  const checkRustBridge = async () => {
-    const result = await invoke<string>("ping");
-    console.log("Rust bridge:", result);
+  const openMainWindow = async () => {
+    await invoke("open_main_window");
   };
+
+  if (windowLabel === "menubar") {
+    return (
+      <main className="h-screen w-screen overflow-hidden bg-transparent text-foreground">
+        <div className="flex h-full w-full flex-col items-center bg-transparent p-3 pt-1.5">
+          <div className="tray-arrow z-20 translate-y-1" />
+          <div className="relative mt-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-white/14 bg-[#1c1f26] shadow-lg select-none">
+            <div className="px-5 pb-2 pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="space-y-1" data-tauri-drag-region>
+                  <div className="text-sm font-semibold tracking-tight">PromptBook</div>
+                  <p className="text-xs text-muted-foreground">Copy prompts fast</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={openMainWindow}>
+                  <Expand className="size-3.5" />
+                  Full
+                </Button>
+              </div>
+              <div className="mt-2">
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search prompts..." />
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 px-5 pb-4 pt-0">
+              <ScrollArea className="h-full pr-1 scrollbar-none">
+                <div className="space-y-1.5">
+                  {filteredPrompts.map((prompt) => {
+                    const selected = prompt.id === selectedId;
+                    return (
+                      <button
+                        key={prompt.id}
+                        onClick={async () => {
+                          setSelectedId(prompt.id);
+                          await copyPrompt(prompt);
+                        }}
+                        className={`group w-full rounded-xl border p-2.5 text-left transition ${
+                          selected
+                            ? "border-white/18 bg-white/8"
+                            : "border-transparent bg-transparent hover:border-white/12 hover:bg-white/6"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="truncate text-sm font-medium">{prompt.title}</div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            {copiedId === prompt.id ? (
+                              <Check className="size-3.5 text-success" />
+                            ) : (
+                              <Copy className="size-3.5 opacity-70 group-hover:opacity-100" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{prompt.content.split("\n")[0]}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-background p-6 text-foreground">
-      <div className="mx-auto grid max-w-7xl grid-cols-12 gap-4">
-        <Card className="col-span-12 md:col-span-4 lg:col-span-3">
+    <main className="h-screen w-screen overflow-hidden bg-transparent p-3 text-foreground">
+      <header
+        className="mb-3 flex h-10 items-center justify-between rounded-xl border border-white/25 bg-card/70 px-3 backdrop-blur-xl dark:border-white/10"
+        data-tauri-drag-region
+      >
+        <div className="text-sm font-semibold tracking-tight">PromptBook</div>
+        <Badge variant="secondary">Menu-bar first</Badge>
+      </header>
+
+      <div className="grid h-[calc(100%-3.25rem)] grid-cols-12 gap-3">
+        <Card className="col-span-12 flex h-full min-h-0 flex-col border-white/30 bg-card/75 backdrop-blur-xl md:col-span-4 lg:col-span-3 dark:border-white/10">
           <CardHeader className="space-y-3 pb-3">
-            <CardTitle className="text-lg">PromptBook</CardTitle>
+            <CardTitle className="text-lg">Prompt Library</CardTitle>
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search prompts" />
           </CardHeader>
-          <CardContent className="pt-0">
-            <ScrollArea className="h-[540px] pr-2">
+          <CardContent className="min-h-0 flex-1 pt-0">
+            <ScrollArea className="h-full pr-2">
               <div className="space-y-2">
                 {filteredPrompts.map((prompt) => {
                   const isSelected = prompt.id === selectedPrompt.id;
@@ -95,9 +174,7 @@ function App() {
                     <button
                       key={prompt.id}
                       className={`w-full rounded-lg border p-3 text-left transition ${
-                        isSelected
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:bg-secondary/60"
+                        isSelected ? "border-primary/30 bg-primary/8" : "border-border/60 hover:bg-secondary/70"
                       }`}
                       onClick={() => setSelectedId(prompt.id)}
                     >
@@ -114,7 +191,7 @@ function App() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-12 md:col-span-8 lg:col-span-9">
+        <Card className="col-span-12 flex h-full min-h-0 flex-col border-white/30 bg-card/75 backdrop-blur-xl md:col-span-8 lg:col-span-9 dark:border-white/10">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Input
@@ -123,31 +200,36 @@ function App() {
                 className="max-w-md"
               />
               <div className="flex items-center gap-2">
-                <Tabs value={mode} onValueChange={(v) => setMode(v as "raw" | "preview")}> 
+                <Tabs value={mode} onValueChange={(v) => setMode(v as "raw" | "preview")}>
                   <TabsList>
                     <TabsTrigger value="raw">Raw</TabsTrigger>
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                   </TabsList>
                 </Tabs>
-                <Button variant="secondary" onClick={checkRustBridge}>
-                  Ping Rust
+                <Button variant="outline" onClick={() => openMainWindow()}>
+                  Keep Open
                 </Button>
-                <Button onClick={copyPrompt}>Copy</Button>
+                <Button onClick={() => copyPrompt()}>
+                  <Copy className="size-4" />
+                  Copy
+                </Button>
               </div>
             </div>
           </CardHeader>
           <Separator />
-          <CardContent className="pt-4">
+          <CardContent className="min-h-0 flex-1 pt-4">
             {mode === "raw" ? (
               <Textarea
-                className="min-h-[500px] font-mono text-[13px]"
+                className="h-full min-h-0 resize-none font-mono text-[13px]"
                 value={selectedPrompt.content}
                 onChange={(e) => savePrompt(selectedPrompt.title, e.target.value)}
               />
             ) : (
-              <div className="min-h-[500px] whitespace-pre-wrap rounded-lg border bg-card p-4 text-sm leading-6">
-                {selectedPrompt.content}
-              </div>
+              <ScrollArea className="h-full">
+                <div className="whitespace-pre-wrap rounded-lg border bg-card/80 p-4 text-sm leading-6 backdrop-blur-md">
+                  {selectedPrompt.content}
+                </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
