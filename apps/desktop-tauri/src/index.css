@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -126,7 +128,7 @@ body {
   height: 0;
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
-  border-bottom: 7px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 7px solid var(--border);
 }
 
 .tray-arrow::after {
@@ -138,5 +140,5 @@ body {
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 6px solid rgba(18, 22, 28, 0.86);
+  border-bottom: 6px solid var(--card);
 }

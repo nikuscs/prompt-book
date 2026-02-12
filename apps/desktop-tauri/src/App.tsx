@@ -92,7 +92,7 @@ function App() {
       <main className="h-screen w-screen overflow-hidden bg-transparent text-foreground">
         <div className="flex h-full w-full flex-col items-center bg-transparent p-3 pt-1.5">
           <div className="tray-arrow z-20 translate-y-1" />
-          <div className="relative mt-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-white/14 bg-[#1c1f26] shadow-lg select-none">
+          <div className="relative mt-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-border bg-card shadow-lg select-none">
             <div className="px-5 pb-2 pt-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="space-y-1" data-tauri-drag-region>
@@ -122,8 +122,8 @@ function App() {
                         }}
                         className={`group w-full rounded-xl border p-2.5 text-left transition ${
                           selected
-                            ? "border-white/18 bg-white/8"
-                            : "border-transparent bg-transparent hover:border-white/12 hover:bg-white/6"
+                            ? "border-border bg-secondary"
+                            : "border-transparent bg-transparent hover:border-border hover:bg-secondary"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
