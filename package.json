@@ -1,0 +1,22 @@
+{
+  "name": "prompt-book-monorepo",
+  "private": true,
+  "packageManager": "bun@1.3.5",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "dev:desktop": "turbo -F @promptbook/desktop-tauri dev",
+    "tauri:dev": "bun run --cwd apps/desktop-tauri tauri dev",
+    "tauri:dev:lowcpu": "CARGO_BUILD_JOBS=2 bun run --cwd apps/desktop-tauri tauri dev",
+    "desktop:build": "bun run --cwd apps/desktop-tauri build"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.5"
+  }
+}
