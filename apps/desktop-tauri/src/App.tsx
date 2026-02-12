@@ -53,6 +53,8 @@ function App() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(seedPrompts[0].id);
   const [expandedId, setExpandedId] = useState(seedPrompts[0].id);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState("");
   const [windowLabel, setWindowLabel] = useState("main");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -216,23 +218,49 @@ function App() {
                     >
                       <ChevronDown className={`size-3.5 text-muted-foreground transition ${isExpanded ? "rotate-180" : ""}`} />
                     </button>
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <div
-                        contentEditable
-                        suppressContentEditableWarning
-                        spellCheck={false}
-                        className="min-w-0 bg-transparent px-1 text-[13px] font-medium outline-none cursor-text"
-                        onBlur={(e) => savePromptTitle(prompt.id, e.currentTarget.textContent?.trim() || "Unnamed")}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            e.currentTarget.blur();
-                          }
-                        }}
-                      >
-                        {prompt.title || "Unnamed"}
-                      </div>
-                      <span className="truncate text-[12px] text-muted-foreground">
+                    <div
+                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2"
+                      onClick={(e) => {
+                        if (e.detail > 1 || editingTitleId === prompt.id) return;
+                        setSelectedId(prompt.id);
+                        setExpandedId((prev) => (prev === prompt.id ? "" : prompt.id));
+                      }}
+                      onDoubleClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingTitleId(prompt.id);
+                        setEditingTitleValue(prompt.title || "Unnamed");
+                      }}
+                    >
+                      {editingTitleId === prompt.id ? (
+                        <span
+                          contentEditable
+                          suppressContentEditableWarning
+                          spellCheck={false}
+                          className="inline-block min-w-10 max-w-[280px] whitespace-nowrap px-1 text-[12px] font-medium cursor-text caret-current outline-none"
+                          onBlur={(e) => {
+                            savePromptTitle(prompt.id, e.currentTarget.textContent?.trim() || "Unnamed");
+                            setEditingTitleId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              e.currentTarget.blur();
+                            }
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              setEditingTitleId(null);
+                            }
+                          }}
+                        >
+                          {editingTitleValue}
+                        </span>
+                      ) : (
+                        <span className="max-w-[280px] truncate whitespace-nowrap px-1 text-[12px] font-medium">
+                          {prompt.title || "Unnamed"}
+                        </span>
+                      )}
+                      <span className="truncate text-[11px] text-muted-foreground">
                         {getPromptPreview(prompt.content)}
                       </span>
                     </div>

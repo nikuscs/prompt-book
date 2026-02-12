@@ -15,9 +15,9 @@
       {
         "label": "main",
         "title": "PromptBook",
-        "width": 980,
+        "width": 900,
         "height": 620,
-        "minWidth": 860,
+        "minWidth": 760,
         "minHeight": 500,
         "visible": false,
         "decorations": true,
