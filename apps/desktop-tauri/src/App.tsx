@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Check, Copy, Expand } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Check, ChevronDown, Copy, Expand, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 type Prompt = {
@@ -43,11 +39,20 @@ const seedPrompts: Prompt[] = [
   },
 ];
 
+function getPromptPreview(content: string): string {
+  return content
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/[*_`>#-]/g, "")
+    .replace(/\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function App() {
   const [prompts, setPrompts] = useState<Prompt[]>(seedPrompts);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(seedPrompts[0].id);
-  const [mode, setMode] = useState<"raw" | "preview">("raw");
+  const [expandedId, setExpandedId] = useState(seedPrompts[0].id);
   const [windowLabel, setWindowLabel] = useState("main");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -55,20 +60,18 @@ function App() {
     setWindowLabel(getCurrentWindow().label);
   }, []);
 
-  const selectedPrompt = prompts.find((p) => p.id === selectedId) ?? prompts[0];
   const filteredPrompts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return prompts;
     return prompts.filter((p) => p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q));
   }, [prompts, search]);
 
-  const savePrompt = (title: string, content: string) => {
+  const savePrompt = (promptId: string, content: string) => {
     setPrompts((prev) =>
       prev.map((prompt) =>
-        prompt.id === selectedPrompt.id
+        prompt.id === promptId
           ? {
               ...prompt,
-              title,
               content,
             }
           : prompt,
@@ -76,15 +79,46 @@ function App() {
     );
   };
 
-  const copyPrompt = async (prompt = selectedPrompt) => {
+  const savePromptTitle = (promptId: string, title: string) => {
+    setPrompts((prev) =>
+      prev.map((prompt) =>
+        prompt.id === promptId
+          ? {
+              ...prompt,
+              title,
+            }
+          : prompt,
+      ),
+    );
+  };
+
+  const copyPrompt = async (prompt: Prompt) => {
     await navigator.clipboard.writeText(prompt.content);
     setCopiedId(prompt.id);
     setPrompts((prev) => prev.map((p) => (p.id === prompt.id ? { ...p, copied: p.copied + 1 } : p)));
     setTimeout(() => setCopiedId((id) => (id === prompt.id ? null : id)), 1000);
   };
 
+  const addPrompt = () => {
+    const prompt: Prompt = {
+      id: crypto.randomUUID(),
+      title: "Unnamed",
+      content: "## Task\n",
+      copied: 0,
+      searched: 0,
+    };
+    setPrompts((prev) => [prompt, ...prev]);
+    setSelectedId(prompt.id);
+    setExpandedId(prompt.id);
+  };
+
   const openMainWindow = async () => {
     await invoke("open_main_window");
+  };
+
+  const startWindowDrag = () => {
+    if (windowLabel !== "main") return;
+    void getCurrentWindow().startDragging();
   };
 
   if (windowLabel === "menubar") {
@@ -150,89 +184,82 @@ function App() {
   }
 
   return (
-    <main className="h-screen w-screen overflow-hidden bg-transparent p-3 text-foreground">
-      <header
-        className="mb-3 flex h-10 items-center justify-between rounded-xl border border-white/25 bg-card/70 px-3 backdrop-blur-xl dark:border-white/10"
-        data-tauri-drag-region
-      >
-        <div className="text-sm font-semibold tracking-tight">PromptBook</div>
-        <Badge variant="secondary">Menu-bar first</Badge>
-      </header>
-
-      <div className="grid h-[calc(100%-3.25rem)] grid-cols-12 gap-3">
-        <Card className="col-span-12 flex h-full min-h-0 flex-col border-white/30 bg-card/75 backdrop-blur-xl md:col-span-4 lg:col-span-3 dark:border-white/10">
-          <CardHeader className="space-y-3 pb-3">
-            <CardTitle className="text-lg">Prompt Library</CardTitle>
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search prompts" />
-          </CardHeader>
-          <CardContent className="min-h-0 flex-1 pt-0">
-            <ScrollArea className="h-full pr-2">
-              <div className="space-y-2">
-                {filteredPrompts.map((prompt) => {
-                  const isSelected = prompt.id === selectedPrompt.id;
-                  return (
+    <main className="relative h-screen w-screen overflow-hidden bg-background px-4 pb-4 pt-11 text-foreground">
+      <div className="absolute left-28 right-0 top-0 h-10" data-tauri-drag-region onMouseDown={startWindowDrag} />
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex items-center gap-2 pb-2">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search prompts..."
+            className="flex-1"
+          />
+          <Button variant="outline" onClick={addPrompt}>
+            <Plus className="size-3.5" />
+            Add
+          </Button>
+        </div>
+        <ScrollArea className="min-h-0 flex-1 pr-1">
+          <div className="space-y-1.5 pb-1">
+            {filteredPrompts.map((prompt) => {
+              const isExpanded = expandedId === prompt.id;
+                const isCopied = copiedId === prompt.id;
+              return (
+                <div key={prompt.id} className="rounded-lg border border-border bg-card">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5">
                     <button
-                      key={prompt.id}
-                      className={`w-full rounded-lg border p-3 text-left transition ${
-                        isSelected ? "border-primary/30 bg-primary/8" : "border-border/60 hover:bg-secondary/70"
-                      }`}
-                      onClick={() => setSelectedId(prompt.id)}
+                      className="inline-flex cursor-pointer items-center justify-center rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      onClick={() => {
+                        setSelectedId(prompt.id);
+                        setExpandedId((prev) => (prev === prompt.id ? "" : prompt.id));
+                      }}
                     >
-                      <div className="font-medium">{prompt.title}</div>
-                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="secondary">Copied {prompt.copied}</Badge>
-                        <Badge variant="secondary">Searched {prompt.searched}</Badge>
-                      </div>
+                      <ChevronDown className={`size-3.5 text-muted-foreground transition ${isExpanded ? "rotate-180" : ""}`} />
                     </button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-12 flex h-full min-h-0 flex-col border-white/30 bg-card/75 backdrop-blur-xl md:col-span-8 lg:col-span-9 dark:border-white/10">
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Input
-                value={selectedPrompt.title}
-                onChange={(e) => savePrompt(e.target.value, selectedPrompt.content)}
-                className="max-w-md"
-              />
-              <div className="flex items-center gap-2">
-                <Tabs value={mode} onValueChange={(v) => setMode(v as "raw" | "preview")}>
-                  <TabsList>
-                    <TabsTrigger value="raw">Raw</TabsTrigger>
-                    <TabsTrigger value="preview">Preview</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                <Button variant="outline" onClick={() => openMainWindow()}>
-                  Keep Open
-                </Button>
-                <Button onClick={() => copyPrompt()}>
-                  <Copy className="size-4" />
-                  Copy
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <Separator />
-          <CardContent className="min-h-0 flex-1 pt-4">
-            {mode === "raw" ? (
-              <Textarea
-                className="h-full min-h-0 resize-none font-mono text-[13px]"
-                value={selectedPrompt.content}
-                onChange={(e) => savePrompt(selectedPrompt.title, e.target.value)}
-              />
-            ) : (
-              <ScrollArea className="h-full">
-                <div className="whitespace-pre-wrap rounded-lg border bg-card/80 p-4 text-sm leading-6 backdrop-blur-md">
-                  {selectedPrompt.content}
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <div
+                        contentEditable
+                        suppressContentEditableWarning
+                        spellCheck={false}
+                        className="min-w-0 bg-transparent px-1 text-[13px] font-medium outline-none cursor-text"
+                        onBlur={(e) => savePromptTitle(prompt.id, e.currentTarget.textContent?.trim() || "Unnamed")}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            e.currentTarget.blur();
+                          }
+                        }}
+                      >
+                        {prompt.title || "Unnamed"}
+                      </div>
+                      <span className="truncate text-[12px] text-muted-foreground">
+                        {getPromptPreview(prompt.content)}
+                      </span>
+                    </div>
+                    <Button
+                      size="xs"
+                      variant={isCopied ? "secondary" : "outline"}
+                      className={isCopied ? "border-success/45 bg-success/12 text-success hover:bg-success/18" : ""}
+                      onClick={() => copyPrompt(prompt)}
+                    >
+                      {isCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                      {isCopied ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
+                  {isExpanded ? (
+                    <div className="border-t border-border px-2.5 pb-2.5 pt-2">
+                      <Textarea
+                        className="min-h-[140px] resize-y font-mono text-[13px]"
+                        value={prompt.content}
+                        onChange={(e) => savePrompt(prompt.id, e.target.value)}
+                      />
+                    </div>
+                  ) : null}
                 </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
+              );
+            })}
+          </div>
+        </ScrollArea>
       </div>
     </main>
   );

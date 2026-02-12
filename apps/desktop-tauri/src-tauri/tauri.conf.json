@@ -16,15 +16,19 @@
         "label": "main",
         "title": "PromptBook",
         "width": 980,
-        "height": 660,
+        "height": 620,
         "minWidth": 860,
-        "minHeight": 560,
+        "minHeight": 500,
         "visible": false,
         "decorations": true,
-        "transparent": true,
+        "transparent": false,
         "shadow": true,
         "hiddenTitle": true,
-        "titleBarStyle": "Transparent"
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 18
+        }
       },
       {
         "label": "menubar",
