@@ -283,7 +283,7 @@ pub fn run() {
             let tray_menu = MenuBuilder::new(app)
                 .text("open", "Open Full Window")
                 .separator()
-                .text("quit", "Quit PromptBook")
+                .text("quit", format!("Quit {}", app.package_info().name))
                 .build()?;
 
             TrayIconBuilder::new()
