@@ -158,8 +158,8 @@ export function PromptCard({
             isDeleteConfirm={isDeleteConfirm}
             onCopy={onCopy}
             onToggleMenu={() => setMenuOpen((prev) => !prev)}
-            onDelete={onDelete}
-            onRequestDeleteConfirm={onRequestDeleteConfirm}
+            {...(onDelete ? { onDelete } : {})}
+            {...(onRequestDeleteConfirm ? { onRequestDeleteConfirm } : {})}
           />
           <PromptCardMenu open={menuOpen} onOpenInEditor={onEditorClick} onCopyPath={onCopyPathClick} />
         </div>

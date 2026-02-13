@@ -68,13 +68,13 @@ export function PromptList({
             onToggle={() => onToggle?.(prompt.id)}
             onStartEdit={() => onStartEdit?.(prompt)}
             onCommitTitle={(value) => onCommitTitle?.(prompt.id, value)}
-            onCancelEdit={onCancelEdit}
             onCopy={() => onCopy(prompt)}
             onCopyPath={() => onCopyPath(prompt)}
             onOpenInEditor={(editor) => onOpenInEditor(prompt, editor)}
-            onRequestDeleteConfirm={() => onRequestDeleteConfirm?.(prompt.id)}
-            onDelete={() => onDelete?.(prompt.id)}
-            onContentChange={(value) => onContentChange?.(prompt.id, value)}
+            {...(onCancelEdit ? { onCancelEdit } : {})}
+            {...(onRequestDeleteConfirm ? { onRequestDeleteConfirm: () => onRequestDeleteConfirm(prompt.id) } : {})}
+            {...(onDelete ? { onDelete: () => onDelete(prompt.id) } : {})}
+            {...(onContentChange ? { onContentChange: (value: string) => onContentChange(prompt.id, value) } : {})}
           />
         );
       })}

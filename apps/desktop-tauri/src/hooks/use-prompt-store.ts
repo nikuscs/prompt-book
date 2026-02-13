@@ -35,9 +35,11 @@ export function usePromptStore() {
         const loaded = await invoke<Prompt[]>("load_prompts");
         if (cancelled) return;
         if (loaded.length > 0) {
+          const first = loaded[0];
+          if (!first) return;
           setPrompts(loaded);
-          setSelectedId(loaded[0].id);
-          setExpandedId(loaded[0].id);
+          setSelectedId(first.id);
+          setExpandedId(first.id);
         } else {
           await persistPrompts(promptSeed);
         }
@@ -129,10 +131,12 @@ export function usePromptStore() {
     }
 
     if (selectedId === promptId) {
-      setSelectedId(remaining[0].id);
+      const first = remaining[0];
+      if (first) setSelectedId(first.id);
     }
     if (expandedId === promptId) {
-      setExpandedId(remaining[0].id);
+      const first = remaining[0];
+      if (first) setExpandedId(first.id);
     }
     if (editingTitleId === promptId) {
       setEditingTitleId(null);
