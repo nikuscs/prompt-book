@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState } from "react";
 
@@ -10,18 +11,52 @@ import { useWindowMainSize, useWindowMenubarSize } from "@/hooks/use-window-size
 import { UNNAMED_PROMPT_TITLE } from "@/lib/constants";
 import type { Prompt } from "@/types/prompt";
 
+type FocusPromptEditorPayload = {
+  promptId: string;
+};
+
 function App() {
   const [windowLabel, setWindowLabel] = useState("main");
+  const [focusPromptRequest, setFocusPromptRequest] = useState<{ promptId: string; token: number } | null>(null);
   const mainContentRef = useRef<HTMLDivElement | null>(null);
   const menubarContentRef = useRef<HTMLDivElement | null>(null);
   const menubarHeaderRef = useRef<HTMLDivElement | null>(null);
   const menubarListInnerRef = useRef<HTMLDivElement | null>(null);
 
   const promptStore = usePromptStore();
+  const { setSelectedId, setExpandedId } = promptStore;
 
   useEffect(() => {
     setWindowLabel(getCurrentWindow().label);
   }, []);
+
+  useEffect(() => {
+    if (windowLabel !== "main") return;
+    let unlisten: (() => void) | null = null;
+    let mounted = true;
+
+    void listen<FocusPromptEditorPayload>("focus-prompt-editor", (event) => {
+      const promptId = event.payload?.promptId;
+      if (!promptId) return;
+      setSelectedId(promptId);
+      setExpandedId(promptId);
+      setFocusPromptRequest((prev) => ({
+        promptId,
+        token: (prev?.token ?? 0) + 1,
+      }));
+    }).then((fn) => {
+      if (!mounted) {
+        fn();
+        return;
+      }
+      unlisten = fn;
+    });
+
+    return () => {
+      mounted = false;
+      unlisten?.();
+    };
+  }, [setExpandedId, setSelectedId, windowLabel]);
 
   useWindowGuards(() => {
     void promptStore.forceSave();
@@ -81,6 +116,9 @@ function App() {
         onOpenMainWindow={openMainWindow}
         onSelectPrompt={promptStore.setSelectedId}
         onCopyPrompt={promptStore.copyPrompt}
+        onEditPrompt={(prompt) => {
+          void invoke("open_main_window_for_prompt", { promptId: prompt.id });
+        }}
         onOpenPromptInEditor={promptStore.openPromptInEditor}
         onCopyPromptPath={promptStore.copyPromptPath}
       />
@@ -97,6 +135,7 @@ function App() {
       deleteConfirmId={promptStore.deleteConfirmId}
       editingTitleId={promptStore.editingTitleId}
       editingTitleValue={promptStore.editingTitleValue}
+      focusPromptRequest={focusPromptRequest}
       contentRef={mainContentRef}
       onSearchChange={promptStore.setSearch}
       onAddPrompt={promptStore.addPrompt}

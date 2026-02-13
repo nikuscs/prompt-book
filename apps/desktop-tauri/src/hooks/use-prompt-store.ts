@@ -101,10 +101,14 @@ export function usePromptStore() {
   };
 
   const copyPrompt = async (prompt: Prompt) => {
-    await navigator.clipboard.writeText(prompt.content);
-    setCopiedId(prompt.id);
-    setPrompts((prev) => prev.map((p) => (p.id === prompt.id ? { ...p, copied: p.copied + 1 } : p)));
-    setTimeout(() => setCopiedId((id) => (id === prompt.id ? null : id)), COPY_FEEDBACK_TIMEOUT_MS);
+    try {
+      await navigator.clipboard.writeText(prompt.content);
+      setCopiedId(prompt.id);
+      setPrompts((prev) => prev.map((p) => (p.id === prompt.id ? { ...p, copied: p.copied + 1 } : p)));
+      setTimeout(() => setCopiedId((id) => (id === prompt.id ? null : id)), COPY_FEEDBACK_TIMEOUT_MS);
+    } catch (error) {
+      console.error("Failed to copy prompt:", error);
+    }
   };
 
   const addPrompt = () => {

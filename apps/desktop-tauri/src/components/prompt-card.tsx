@@ -17,12 +17,14 @@ type PromptCardProps = {
   isDeleteConfirm?: boolean;
   editingTitle?: boolean;
   editingTitleValue?: string;
+  focusToken?: number;
   onToggle?: () => void;
   onSelect?: () => void;
   onStartEdit?: () => void;
   onCommitTitle?: (value: string) => void;
   onCancelEdit?: () => void;
   onCopy: () => void;
+  onEdit?: () => void;
   onOpenInEditor?: (editor: "cursor" | "vscode" | "zed") => void;
   onCopyPath?: () => void;
   onDelete?: () => void;
@@ -48,12 +50,14 @@ export function PromptCard({
   isDeleteConfirm = false,
   editingTitle = false,
   editingTitleValue = "",
+  focusToken,
   onToggle,
   onSelect,
   onStartEdit,
   onCommitTitle,
   onCancelEdit,
   onCopy,
+  onEdit,
   onOpenInEditor,
   onCopyPath,
   onDelete,
@@ -62,6 +66,7 @@ export function PromptCard({
 }: PromptCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -75,6 +80,23 @@ export function PromptCard({
     return () => window.removeEventListener("mousedown", onMouseDown);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (variant !== "main") return;
+    if (!isExpanded || focusToken == null) return;
+    const frame = window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+      const textarea = cardRef.current?.querySelector("textarea");
+      if (!(textarea instanceof HTMLTextAreaElement)) return;
+      textarea.focus();
+      const length = textarea.value.length;
+      textarea.setSelectionRange(length, length);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusToken, isExpanded, variant]);
+
   const onEditorClick = (editor: "cursor" | "vscode" | "zed") => {
     onOpenInEditor?.(editor);
     setMenuOpen(false);
@@ -84,6 +106,13 @@ export function PromptCard({
     onCopyPath?.();
     setMenuOpen(false);
   };
+
+  const onEditClick = onEdit
+    ? () => {
+        onEdit();
+        setMenuOpen(false);
+      }
+    : undefined;
 
   if (variant === "menubar") {
     return (
@@ -100,8 +129,18 @@ export function PromptCard({
             </div>
           </button>
           <div className="relative" ref={menuRef}>
-            <PromptCardActions variant="menubar" isCopied={isCopied} onCopy={onCopy} onToggleMenu={() => setMenuOpen((prev) => !prev)} />
-            <PromptCardMenu open={menuOpen} onOpenInEditor={onEditorClick} onCopyPath={onCopyPathClick} />
+            <PromptCardActions
+              variant="menubar"
+              isCopied={isCopied}
+              onCopy={onCopy}
+              onToggleMenu={() => setMenuOpen((prev) => !prev)}
+            />
+            <PromptCardMenu
+              open={menuOpen}
+              onOpenInEditor={onEditorClick}
+              onCopyPath={onCopyPathClick}
+              {...(onEditClick ? { onEdit: onEditClick } : {})}
+            />
           </div>
         </div>
       </div>
@@ -109,7 +148,7 @@ export function PromptCard({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <div ref={cardRef} className="rounded-lg border border-border bg-card">
       <div className="flex items-center gap-1.5 px-2.5 py-1.5">
         <Button size="icon-xs" variant="ghost" className="size-6 rounded-sm text-muted-foreground" onClick={onToggle}>
           <ChevronDown className={`size-3.5 text-muted-foreground transition ${isExpanded ? "rotate-180" : ""}`} />
@@ -170,7 +209,12 @@ export function PromptCard({
             {...(onDelete ? { onDelete } : {})}
             {...(onRequestDeleteConfirm ? { onRequestDeleteConfirm } : {})}
           />
-          <PromptCardMenu open={menuOpen} onOpenInEditor={onEditorClick} onCopyPath={onCopyPathClick} />
+          <PromptCardMenu
+            open={menuOpen}
+            onOpenInEditor={onEditorClick}
+            onCopyPath={onCopyPathClick}
+            {...(onEditClick ? { onEdit: onEditClick } : {})}
+          />
         </div>
       </div>
       {isExpanded ? (

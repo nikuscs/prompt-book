@@ -10,12 +10,14 @@ type PromptListProps = {
   deleteConfirmId?: string | null;
   editingTitleId?: string | null;
   editingTitleValue?: string;
+  focusPromptRequest?: { promptId: string; token: number } | null;
   onSelect?: (promptId: string) => void;
   onToggle?: (promptId: string) => void;
   onStartEdit?: (prompt: Prompt) => void;
   onCommitTitle?: (promptId: string, value: string) => void;
   onCancelEdit?: () => void;
   onCopy: (prompt: Prompt) => void;
+  onEdit?: (prompt: Prompt) => void;
   onCopyPath: (prompt: Prompt) => void;
   onOpenInEditor: (prompt: Prompt, editor: "cursor" | "vscode" | "zed") => void;
   onRequestDeleteConfirm?: (promptId: string) => void;
@@ -32,12 +34,14 @@ export function PromptList({
   deleteConfirmId = null,
   editingTitleId = null,
   editingTitleValue = "",
+  focusPromptRequest = null,
   onSelect,
   onToggle,
   onStartEdit,
   onCommitTitle,
   onCancelEdit,
   onCopy,
+  onEdit,
   onCopyPath,
   onOpenInEditor,
   onRequestDeleteConfirm,
@@ -71,6 +75,8 @@ export function PromptList({
             onCopy={() => onCopy(prompt)}
             onCopyPath={() => onCopyPath(prompt)}
             onOpenInEditor={(editor) => onOpenInEditor(prompt, editor)}
+            {...(focusPromptRequest?.promptId === prompt.id ? { focusToken: focusPromptRequest.token } : {})}
+            {...(onEdit ? { onEdit: () => onEdit(prompt) } : {})}
             {...(onCancelEdit ? { onCancelEdit } : {})}
             {...(onRequestDeleteConfirm ? { onRequestDeleteConfirm: () => onRequestDeleteConfirm(prompt.id) } : {})}
             {...(onDelete ? { onDelete: () => onDelete(prompt.id) } : {})}

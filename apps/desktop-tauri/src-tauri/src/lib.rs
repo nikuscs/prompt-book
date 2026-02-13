@@ -1,5 +1,6 @@
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::Emitter;
 use tauri::{Manager, Position, Size, WindowEvent};
 mod storage;
 use std::fs;
@@ -160,6 +161,14 @@ fn open_main_window(app: tauri::AppHandle) {
     }
 }
 
+#[tauri::command]
+fn open_main_window_for_prompt(app: tauri::AppHandle, prompt_id: String) {
+    open_main_window(app.clone());
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.emit("focus-prompt-editor", serde_json::json!({ "promptId": prompt_id }));
+    }
+}
+
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -225,8 +234,8 @@ fn position_menubar_at_tray_icon(app: &tauri::AppHandle, icon_position: Position
     let icon_center_x_phys = icon_phys_x + (icon_width_phys / 2);
     let panel_x_phys = icon_center_x_phys - (window_width_phys / 2);
 
-    // Tight visual coupling to the menu bar like OpenUsage.
-    let nudge_up_points = 2.0_f64;
+    // Keep the popover visually attached to the tray icon.
+    let nudge_up_points = 7.0_f64;
     let nudge_up_phys = (nudge_up_points * scale_factor).round() as i32;
     let panel_y_phys = icon_phys_y + icon_height_phys - nudge_up_phys;
 
@@ -280,10 +289,16 @@ pub fn run() {
                 let _ = init_menubar_panel(app.app_handle());
             }
 
+            let app_name = app
+                .config()
+                .product_name
+                .clone()
+                .unwrap_or_else(|| app.package_info().name.clone());
+
             let tray_menu = MenuBuilder::new(app)
                 .text("open", "Open Full Window")
                 .separator()
-                .text("quit", format!("Quit {}", app.package_info().name))
+                .text("quit", format!("Quit {app_name}"))
                 .build()?;
 
             TrayIconBuilder::new()
@@ -314,6 +329,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ping,
             open_main_window,
+            open_main_window_for_prompt,
             load_prompts,
             save_prompts,
             get_prompt_path,

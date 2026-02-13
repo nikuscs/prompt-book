@@ -16,6 +16,7 @@ type WindowMainViewProps = {
   deleteConfirmId: string | null;
   editingTitleId: string | null;
   editingTitleValue: string;
+  focusPromptRequest: { promptId: string; token: number } | null;
   contentRef: RefObject<HTMLDivElement | null>;
   onSearchChange: (value: string) => void;
   onAddPrompt: () => void;
@@ -42,6 +43,7 @@ export function WindowMainView({
   deleteConfirmId,
   editingTitleId,
   editingTitleValue,
+  focusPromptRequest,
   contentRef,
   onSearchChange,
   onAddPrompt,
@@ -75,6 +77,7 @@ export function WindowMainView({
             deleteConfirmId={deleteConfirmId}
             editingTitleId={editingTitleId}
             editingTitleValue={editingTitleValue}
+            focusPromptRequest={focusPromptRequest}
             onSelect={onSelectPrompt}
             onToggle={onTogglePrompt}
             onStartEdit={onStartEditPrompt}

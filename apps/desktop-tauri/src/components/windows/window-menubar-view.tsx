@@ -22,6 +22,7 @@ type WindowMenubarViewProps = {
   onOpenMainWindow: () => void;
   onSelectPrompt: (promptId: string) => void;
   onCopyPrompt: (prompt: Prompt) => void;
+  onEditPrompt: (prompt: Prompt) => void;
   onOpenPromptInEditor: (prompt: Prompt, editor: "cursor" | "vscode" | "zed") => void;
   onCopyPromptPath: (prompt: Prompt) => void;
 };
@@ -40,6 +41,7 @@ export function WindowMenubarView({
   onOpenMainWindow,
   onSelectPrompt,
   onCopyPrompt,
+  onEditPrompt,
   onOpenPromptInEditor,
   onCopyPromptPath,
 }: WindowMenubarViewProps) {
@@ -79,6 +81,7 @@ export function WindowMenubarView({
                   copiedId={copiedId}
                   onSelect={onSelectPrompt}
                   onCopy={onCopyPrompt}
+                  onEdit={onEditPrompt}
                   onOpenInEditor={onOpenPromptInEditor}
                   onCopyPath={onCopyPromptPath}
                 />
