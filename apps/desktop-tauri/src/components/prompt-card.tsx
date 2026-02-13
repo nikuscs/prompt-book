@@ -116,9 +116,18 @@ export function PromptCard({
         </Button>
         <div
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2"
+          role="button"
+          tabIndex={0}
           onClick={(event) => {
             if (event.detail > 1 || editingTitle) return;
             onToggle?.();
+          }}
+          onKeyDown={(event) => {
+            if (editingTitle) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onToggle?.();
+            }
           }}
           onDoubleClick={(event) => {
             event.preventDefault();
