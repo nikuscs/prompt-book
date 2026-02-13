@@ -87,7 +87,7 @@ fn open_prompt_in_editor(editor: String, title: String, content: String) -> Resu
         if status.success() {
             return Ok(());
         }
-        return Err(format!("Failed to open {}.", app_name));
+        Err(format!("Failed to open {}.", app_name))
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -168,11 +168,7 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
-fn position_menubar_at_tray_icon(
-    app: &tauri::AppHandle,
-    icon_position: Position,
-    icon_size: Size,
-) {
+fn position_menubar_at_tray_icon(app: &tauri::AppHandle, icon_position: Position, icon_size: Size) {
     let Some(window) = app.get_webview_window("menubar") else {
         return;
     };
@@ -201,27 +197,30 @@ fn position_menubar_at_tray_icon(
     };
     let window_width_phys = window_size.width as i32;
 
-    let (icon_phys_x, icon_phys_y, icon_width_phys, icon_height_phys) = match (icon_position, icon_size) {
-        (Position::Physical(pos), Size::Physical(size)) => (pos.x, pos.y, size.width as i32, size.height as i32),
-        (Position::Logical(pos), Size::Logical(size)) => (
-            (pos.x * scale_factor) as i32,
-            (pos.y * scale_factor) as i32,
-            (size.width * scale_factor) as i32,
-            (size.height * scale_factor) as i32,
-        ),
-        (Position::Physical(pos), Size::Logical(size)) => (
-            pos.x,
-            pos.y,
-            (size.width * scale_factor) as i32,
-            (size.height * scale_factor) as i32,
-        ),
-        (Position::Logical(pos), Size::Physical(size)) => (
-            (pos.x * scale_factor) as i32,
-            (pos.y * scale_factor) as i32,
-            size.width as i32,
-            size.height as i32,
-        ),
-    };
+    let (icon_phys_x, icon_phys_y, icon_width_phys, icon_height_phys) =
+        match (icon_position, icon_size) {
+            (Position::Physical(pos), Size::Physical(size)) => {
+                (pos.x, pos.y, size.width as i32, size.height as i32)
+            }
+            (Position::Logical(pos), Size::Logical(size)) => (
+                (pos.x * scale_factor) as i32,
+                (pos.y * scale_factor) as i32,
+                (size.width * scale_factor) as i32,
+                (size.height * scale_factor) as i32,
+            ),
+            (Position::Physical(pos), Size::Logical(size)) => (
+                pos.x,
+                pos.y,
+                (size.width * scale_factor) as i32,
+                (size.height * scale_factor) as i32,
+            ),
+            (Position::Logical(pos), Size::Physical(size)) => (
+                (pos.x * scale_factor) as i32,
+                (pos.y * scale_factor) as i32,
+                size.width as i32,
+                size.height as i32,
+            ),
+        };
 
     let icon_center_x_phys = icon_phys_x + (icon_width_phys / 2);
     let panel_x_phys = icon_center_x_phys - (window_width_phys / 2);
@@ -264,23 +263,21 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_nspanel::init())
-        .on_window_event(|window, event| {
-            match event {
-                WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
-                    api.prevent_close();
-                    let _ = window.hide();
-                }
-                WindowEvent::Focused(false) if window.label() == "menubar" => {
-                    let _ = window.hide();
-                }
-                _ => {}
+        .on_window_event(|window, event| match event {
+            WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
+                api.prevent_close();
+                let _ = window.hide();
             }
+            WindowEvent::Focused(false) if window.label() == "menubar" => {
+                let _ = window.hide();
+            }
+            _ => {}
         })
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
                 app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-                let _ = init_menubar_panel(&app.app_handle());
+                let _ = init_menubar_panel(app.app_handle());
             }
 
             let tray_menu = MenuBuilder::new(app)
@@ -307,7 +304,7 @@ pub fn run() {
                     } = event
                     {
                         let app = tray.app_handle();
-                        toggle_menubar_window(&app, rect);
+                        toggle_menubar_window(app, rect);
                     }
                 })
                 .build(app)?;

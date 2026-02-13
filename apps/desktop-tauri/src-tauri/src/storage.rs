@@ -69,9 +69,7 @@ fn prompt_file_for(base: &Path, prompt_id: &str, title: &str) -> Option<PathBuf>
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let tmp = path.with_extension(format!(
         "{}.tmp",
-        path.extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("file")
+        path.extension().and_then(|e| e.to_str()).unwrap_or("file")
     ));
     {
         let mut file = fs::File::create(&tmp).map_err(|e| format!("create {:?}: {}", tmp, e))?;
