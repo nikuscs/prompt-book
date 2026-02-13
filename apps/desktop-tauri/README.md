@@ -1,7 +1,30 @@
-# Tauri + React + Typescript
+# PromptBook Desktop (Tauri)
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+Desktop app package for PromptBook.
 
-## Recommended IDE Setup
+## Run
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+```bash
+bun install
+bun run tauri dev
+```
+
+## Validate
+
+```bash
+bun run check
+```
+
+## Build
+
+```bash
+bun run build
+bun run tauri build
+```
+
+## Stack
+
+- Tauri v2
+- React 19 + Vite
+- Tailwind CSS v4
+- Rust + TypeScript strict checks
