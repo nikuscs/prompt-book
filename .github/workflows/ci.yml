@@ -16,7 +16,7 @@ env:
 jobs:
   quality:
     name: Lint + Typecheck + Rust Fmt
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
     steps:
       - name: Checkout
@@ -31,11 +31,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-
-      - name: Install Linux deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libglib2.0-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libwebkit2gtk-4.1-dev
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
