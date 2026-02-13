@@ -41,6 +41,19 @@ function getPromptPreview(content: string): string {
     .trim();
 }
 
+function hasSelectedText(target: EventTarget | null): boolean {
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
+    const start = target.selectionStart;
+    const end = target.selectionEnd;
+    if (start !== null && end !== null && start !== end) {
+      return true;
+    }
+  }
+
+  const selection = window.getSelection();
+  return Boolean(selection && !selection.isCollapsed && selection.toString().length > 0);
+}
+
 export function PromptCard({
   prompt,
   variant,
@@ -114,12 +127,22 @@ export function PromptCard({
       }
     : undefined;
 
+  const onCopyShortcut = (event: React.KeyboardEvent<HTMLElement>) => {
+    const isCopy = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c";
+    if (!isCopy) return;
+    if (hasSelectedText(event.target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onCopy();
+  };
+
   if (variant === "menubar") {
     return (
       <div
         className={`group w-full rounded-lg border px-2 py-1.5 transition ${
           selected ? "border-border bg-secondary" : "border-transparent bg-transparent hover:border-border hover:bg-secondary"
         }`}
+        onKeyDownCapture={onCopyShortcut}
       >
         <div className="flex items-center gap-1">
           <button className="min-w-0 flex-1 text-left" onClick={onSelect}>
@@ -148,7 +171,7 @@ export function PromptCard({
   }
 
   return (
-    <div ref={cardRef} className="rounded-lg border border-border bg-card">
+    <div ref={cardRef} className="rounded-lg border border-border bg-card" onKeyDownCapture={onCopyShortcut}>
       <div className="flex items-center gap-1.5 px-2.5 py-1.5">
         <Button size="icon-xs" variant="ghost" className="size-6 rounded-sm text-muted-foreground" onClick={onToggle}>
           <ChevronDown className={`size-3.5 text-muted-foreground transition ${isExpanded ? "rotate-180" : ""}`} />
