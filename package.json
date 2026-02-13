@@ -15,6 +15,7 @@
     "lint:ts": "turbo lint",
     "typecheck:ts": "turbo typecheck",
     "typecheck:rust": "bun run --cwd apps/desktop-tauri typecheck:rust",
+    "coverage:rust": "bun run --cwd apps/desktop-tauri coverage:rust",
     "fmt:rust": "bun run --cwd apps/desktop-tauri fmt:rust",
     "fmt:rust:check": "bun run --cwd apps/desktop-tauri fmt:rust:check",
     "check": "bun run lint && bun run typecheck && bun run fmt:rust:check",

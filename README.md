@@ -1,7 +1,7 @@
-# PromptBook
+# Promptbook ® 📖
 
-![CI](https://github.com/nikuscs/prompt-book/actions/workflows/ci.yml/badge.svg)
-![Release](https://github.com/nikuscs/prompt-book/actions/workflows/release.yml/badge.svg)
+![CI](https://img.shields.io/github/actions/workflow/status/nikuscs/prompt-book/ci.yml?branch=main&label=CI)
+![Release](https://img.shields.io/github/actions/workflow/status/nikuscs/prompt-book/release.yml?branch=main&label=Release)
 
 Fast macOS menu-bar prompt library built with Tauri v2 + React.
 
@@ -9,14 +9,14 @@ PromptBook is a native-feeling desktop app to store, search, edit, and instantly
 
 ## Features
 
-- Menu-bar popover for quick search + copy
-- Full editor window with inline editing
-- Autosave for title/content
-- Prompt files stored on disk (source of truth)
-- Compact COSS/shadcn-compatible UI system
-- Keyboard shortcuts support (including `Cmd+S`)
-- Rust + TypeScript strict lint/typecheck setup
-- GitHub Actions CI + release workflow
+- ⚡ Menu-bar popover for quick search + copy
+- 🧩 Full editor window with inline editing
+- 💾 Autosave for title/content
+- 🗂️ Prompt files stored on disk (source of truth)
+- 🎨 Compact COSS/shadcn-compatible UI system
+- ⌨️ Keyboard shortcuts support (including `Cmd+S`)
+- 🛡️ Rust + TypeScript strict lint/typecheck setup
+- 🚀 GitHub Actions CI + release workflow
 
 ## Tech Stack
 
@@ -25,11 +25,6 @@ PromptBook is a native-feeling desktop app to store, search, edit, and instantly
 - Tailwind CSS v4
 - Bun workspaces + Turborepo
 - oxlint + TypeScript strict mode + Clippy + rustfmt
-
-## Project Structure
-
-- `/Users/jon/projects/prompt-book/apps/desktop-tauri`: Desktop app (frontend + Tauri)
-- `/Users/jon/projects/prompt-book/.github/workflows`: CI/CD workflows
 
 ## Quick Start
 

@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck:ts": "tsc --noEmit",
     "typecheck:rust": "cargo check --manifest-path src-tauri/Cargo.toml --all-targets",
+    "coverage:rust": "cargo llvm-cov --manifest-path src-tauri/Cargo.toml --summary-only",
     "typecheck": "bun run typecheck:ts && bun run typecheck:rust",
     "lint:ts": "oxlint src --import-plugin --react-plugin --jsx-a11y-plugin --deny-warnings --report-unused-disable-directives -D correctness -D suspicious -D perf -A react-in-jsx-scope -A no-autofocus -A prefer-tag-over-role -A exhaustive-deps -A no-unassigned-import",
     "lint": "bun run lint:ts && bun run lint:rust",
