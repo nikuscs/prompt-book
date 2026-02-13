@@ -2,12 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Check, ChevronDown, Copy, Expand, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PromptCard } from "@/components/prompt-card";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ScrollAreaVanilla } from "@/components/ui/scroll-area-vanilla";
-import { Textarea } from "@/components/ui/textarea";
 
 type Prompt = {
   id: string;
@@ -22,6 +21,11 @@ const MAIN_WINDOW_WIDTH = 720;
 const MAIN_WINDOW_MIN_HEIGHT = 280;
 const MAIN_WINDOW_MAX_HEIGHT = 620;
 const MAIN_LIST_MAX_HEIGHT = 430;
+const MENUBAR_WINDOW_WIDTH = 330;
+const MENUBAR_WINDOW_MIN_HEIGHT = 220;
+const MENUBAR_WINDOW_MAX_HEIGHT = 520;
+const MENUBAR_LIST_MIN_HEIGHT = 64;
+const MENUBAR_LIST_MAX_HEIGHT = 340;
 
 const seedPrompts: Prompt[] = [
   {
@@ -47,15 +51,6 @@ const seedPrompts: Prompt[] = [
   },
 ];
 
-function getPromptPreview(content: string): string {
-  return content
-    .replace(/^#{1,6}\s*/gm, "")
-    .replace(/[*_`>#-]/g, "")
-    .replace(/\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function App() {
   const [prompts, setPrompts] = useState<Prompt[]>(seedPrompts);
   const [search, setSearch] = useState("");
@@ -67,6 +62,11 @@ function App() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const mainContentRef = useRef<HTMLDivElement | null>(null);
+  const menubarContentRef = useRef<HTMLDivElement | null>(null);
+  const menubarHeaderRef = useRef<HTMLDivElement | null>(null);
+  const menubarListInnerRef = useRef<HTMLDivElement | null>(null);
+  const menubarLastHeightRef = useRef<number>(0);
+  const [menubarListHeight, setMenubarListHeight] = useState<number>(MENUBAR_LIST_MIN_HEIGHT);
 
   const persistPrompts = (nextPrompts: Prompt[]) => {
     try {
@@ -113,6 +113,29 @@ function App() {
   }, [prompts]);
 
   useEffect(() => {
+    const onContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const reload = key === "f5" || ((event.metaKey || event.ctrlKey) && key === "r");
+      const inspect =
+        key === "f12" ||
+        ((event.metaKey || event.ctrlKey) && event.altKey && key === "i");
+      if (!reload && !inspect) return;
+      event.preventDefault();
+    };
+
+    window.addEventListener("contextmenu", onContextMenu);
+    window.addEventListener("keydown", onKeyDown, true);
+
+    return () => {
+      window.removeEventListener("contextmenu", onContextMenu);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, []);
+
+  useEffect(() => {
     if (windowLabel !== "main") return;
     const window = getCurrentWindow();
     const resizeToContent = () => {
@@ -138,6 +161,44 @@ function App() {
     if (!q) return prompts;
     return prompts.filter((p) => p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q));
   }, [prompts, search]);
+
+  useEffect(() => {
+    if (windowLabel !== "menubar") return;
+    const window = getCurrentWindow();
+    const resizeToContent = () => {
+      const header = menubarHeaderRef.current;
+      const listInner = menubarListInnerRef.current;
+      if (!header || !listInner) return;
+
+      const naturalListHeight = Math.ceil(listInner.scrollHeight);
+      const nextListHeight = Math.min(
+        MENUBAR_LIST_MAX_HEIGHT,
+        Math.max(MENUBAR_LIST_MIN_HEIGHT, naturalListHeight),
+      );
+
+      setMenubarListHeight((prev) => (Math.abs(prev - nextListHeight) > 1 ? nextListHeight : prev));
+
+      // 10px accounts for wrapper paddings/border gap around header + list areas.
+      const desiredHeight = Math.ceil(header.offsetHeight + nextListHeight + 10);
+      const nextHeight = Math.min(
+        MENUBAR_WINDOW_MAX_HEIGHT,
+        Math.max(MENUBAR_WINDOW_MIN_HEIGHT, desiredHeight),
+      );
+
+      if (Math.abs(nextHeight - menubarLastHeightRef.current) <= 1) return;
+      menubarLastHeightRef.current = nextHeight;
+      void window.setSize(new LogicalSize(MENUBAR_WINDOW_WIDTH, nextHeight));
+    };
+
+    const timer = setTimeout(resizeToContent, 20);
+    const observer = new ResizeObserver(() => resizeToContent());
+    if (menubarContentRef.current) observer.observe(menubarContentRef.current);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [windowLabel, filteredPrompts, copiedId]);
 
   const savePrompt = (promptId: string, content: string) => {
     setPrompts((prev) =>
@@ -224,56 +285,60 @@ function App() {
       <main className="h-screen w-screen overflow-hidden bg-transparent text-foreground">
         <div className="flex h-full w-full flex-col items-center bg-transparent p-3 pt-1.5">
           <div className="tray-arrow z-20 translate-y-1" />
-          <div className="relative mt-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-border bg-card shadow-lg select-none">
-            <div className="px-5 pb-2 pt-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="space-y-1" data-tauri-drag-region>
-                  <div className="text-sm font-semibold tracking-tight">PromptBook</div>
-                  <p className="text-xs text-muted-foreground">Copy prompts fast</p>
+          <div
+            ref={menubarContentRef}
+            className="relative mt-1 flex min-h-0 w-full flex-col overflow-hidden rounded-[20px] border border-border bg-card shadow-lg select-none"
+          >
+            <div ref={menubarHeaderRef} className="px-3 pb-2 pt-1.5">
+              <div className="flex items-center justify-between gap-2 pb-2">
+                <div className="text-[8px] tracking-[0.1em] text-muted-foreground/70" data-tauri-drag-region>
+                  Promptbook ®
                 </div>
-                <Button size="sm" variant="outline" onClick={openMainWindow}>
-                  <Expand className="size-3.5" />
-                  Full
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  className="size-5 rounded-sm p-0"
+                  onClick={openMainWindow}
+                  title="Open full window"
+                  tabIndex={-1}
+                >
+                  <ExternalLink className="size-3.5" />
                 </Button>
               </div>
-              <div className="mt-2">
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search prompts..." />
-              </div>
+              <Input
+                autoFocus
+                size="sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search prompts..."
+                className="text-[12px]"
+              />
             </div>
-            <div className="min-h-0 flex-1 px-5 pb-4 pt-0">
-              <ScrollArea className="h-full pr-1 scrollbar-none">
-                <div className="space-y-1.5">
+            <div className="px-3 pb-2.5 pt-0">
+              <ScrollAreaVanilla
+                className="min-h-0"
+                viewportClassName="p-0 pr-1 pb-1"
+                showScrollIndicators
+                style={{ height: `${menubarListHeight}px` }}
+              >
+                <div ref={menubarListInnerRef} className="space-y-1.5">
                   {filteredPrompts.map((prompt) => {
                     const selected = prompt.id === selectedId;
+                    const isCopied = copiedId === prompt.id;
                     return (
-                      <button
+                      <PromptCard
                         key={prompt.id}
-                        onClick={async () => {
-                          setSelectedId(prompt.id);
-                          await copyPrompt(prompt);
-                        }}
-                        className={`group w-full rounded-xl border p-2.5 text-left transition ${
-                          selected
-                            ? "border-border bg-secondary"
-                            : "border-transparent bg-transparent hover:border-border hover:bg-secondary"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="truncate text-sm font-medium">{prompt.title}</div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            {copiedId === prompt.id ? (
-                              <Check className="size-3.5 text-success" />
-                            ) : (
-                              <Copy className="size-3.5 opacity-70 group-hover:opacity-100" />
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{prompt.content.split("\n")[0]}</div>
-                      </button>
+                        prompt={prompt}
+                        variant="menubar"
+                        selected={selected}
+                        isCopied={isCopied}
+                        onSelect={() => setSelectedId(prompt.id)}
+                        onCopy={() => copyPrompt(prompt)}
+                      />
                     );
                   })}
                 </div>
-              </ScrollArea>
+              </ScrollAreaVanilla>
             </div>
           </div>
         </div>
@@ -309,102 +374,38 @@ function App() {
               const isCopied = copiedId === prompt.id;
               const isDeleteConfirm = deleteConfirmId === prompt.id;
               return (
-                <div key={prompt.id} className="rounded-lg border border-border bg-card">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5">
-                    <button
-                      className="inline-flex cursor-pointer items-center justify-center rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      onClick={() => {
-                        setSelectedId(prompt.id);
-                        setExpandedId((prev) => (prev === prompt.id ? "" : prompt.id));
-                      }}
-                    >
-                      <ChevronDown className={`size-3.5 text-muted-foreground transition ${isExpanded ? "rotate-180" : ""}`} />
-                    </button>
-                    <div
-                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-2"
-                      onClick={(e) => {
-                        if (e.detail > 1 || editingTitleId === prompt.id) return;
-                        setSelectedId(prompt.id);
-                        setExpandedId((prev) => (prev === prompt.id ? "" : prompt.id));
-                      }}
-                      onDoubleClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setEditingTitleId(prompt.id);
-                        setEditingTitleValue(prompt.title || "Unnamed");
-                      }}
-                    >
-                      {editingTitleId === prompt.id ? (
-                        <span
-                          contentEditable
-                          suppressContentEditableWarning
-                          spellCheck={false}
-                          className="inline-block min-w-10 max-w-[280px] whitespace-nowrap px-1 text-[12px] font-medium cursor-text caret-current outline-none"
-                          onBlur={(e) => {
-                            savePromptTitle(prompt.id, e.currentTarget.textContent?.trim() || "Unnamed");
-                            setEditingTitleId(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              e.currentTarget.blur();
-                            }
-                            if (e.key === "Escape") {
-                              e.preventDefault();
-                              setEditingTitleId(null);
-                            }
-                          }}
-                        >
-                          {editingTitleValue}
-                        </span>
-                      ) : (
-                        <span className="max-w-[280px] truncate whitespace-nowrap px-1 text-[12px] font-medium">
-                          {prompt.title || "Unnamed"}
-                        </span>
-                      )}
-                      <span className="truncate text-[11px] text-muted-foreground">
-                        {getPromptPreview(prompt.content)}
-                      </span>
-                    </div>
-                    <Button
-                      size="xs"
-                      variant={isCopied ? "secondary" : "outline"}
-                      className={isCopied ? "border-success/45 bg-success/12 text-success hover:bg-success/18" : ""}
-                      onClick={() => copyPrompt(prompt)}
-                    >
-                      {isCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                      {isCopied ? "Copied" : "Copy"}
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant={isDeleteConfirm ? "secondary" : "ghost"}
-                      className={isDeleteConfirm ? "text-destructive" : "text-muted-foreground hover:text-foreground"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isDeleteConfirm) {
-                          deletePrompt(prompt.id);
-                          return;
-                        }
-                        setDeleteConfirmId(prompt.id);
-                        setTimeout(() => {
-                          setDeleteConfirmId((id) => (id === prompt.id ? null : id));
-                        }, 1600);
-                      }}
-                    >
-                      <Trash2 className="size-3.5" />
-                      {isDeleteConfirm ? "Sure?" : null}
-                    </Button>
-                  </div>
-                  {isExpanded ? (
-                    <div className="border-t border-border px-2.5 pb-2.5 pt-2">
-                      <Textarea
-                        className="min-h-[140px] resize-y font-mono text-[13px]"
-                        value={prompt.content}
-                        onChange={(e) => savePrompt(prompt.id, e.target.value)}
-                      />
-                    </div>
-                  ) : null}
-                </div>
+                <PromptCard
+                  key={prompt.id}
+                  prompt={prompt}
+                  variant="main"
+                  isExpanded={isExpanded}
+                  isCopied={isCopied}
+                  isDeleteConfirm={isDeleteConfirm}
+                  editingTitle={editingTitleId === prompt.id}
+                  editingTitleValue={editingTitleValue}
+                  onToggle={() => {
+                    setSelectedId(prompt.id);
+                    setExpandedId((prev) => (prev === prompt.id ? "" : prompt.id));
+                  }}
+                  onStartEdit={() => {
+                    setEditingTitleId(prompt.id);
+                    setEditingTitleValue(prompt.title || "Unnamed");
+                  }}
+                  onCommitTitle={(value) => {
+                    savePromptTitle(prompt.id, value);
+                    setEditingTitleId(null);
+                  }}
+                  onCancelEdit={() => setEditingTitleId(null)}
+                  onCopy={() => copyPrompt(prompt)}
+                  onRequestDeleteConfirm={() => {
+                    setDeleteConfirmId(prompt.id);
+                    setTimeout(() => {
+                      setDeleteConfirmId((id) => (id === prompt.id ? null : id));
+                    }, 1600);
+                  }}
+                  onDelete={() => deletePrompt(prompt.id)}
+                  onContentChange={(value) => savePrompt(prompt.id, value)}
+                />
               );
             })}
           </div>

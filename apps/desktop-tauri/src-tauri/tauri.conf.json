@@ -33,8 +33,8 @@
       {
         "label": "menubar",
         "title": "PromptBook Menu",
-        "width": 360,
-        "height": 400,
+        "width": 330,
+        "height": 300,
         "resizable": false,
         "visible": false,
         "alwaysOnTop": true,
