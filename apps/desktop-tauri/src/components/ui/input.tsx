@@ -9,7 +9,7 @@ type InputProps = Omit<
   InputPrimitive.Props & React.RefAttributes<HTMLInputElement>,
   "size"
 > & {
-  size?: "sm" | "default" | "lg" | number;
+  size?: "xs" | "sm" | "default" | "lg" | number;
   unstyled?: boolean;
   nativeInput?: boolean;
 };
@@ -23,6 +23,8 @@ function Input({
 }: InputProps) {
   const inputClassName = cn(
     "h-8.5 w-full min-w-0 rounded-[inherit] px-[calc(--spacing(3)-1px)] leading-8.5 outline-none cursor-text placeholder:text-muted-foreground/72 sm:h-7.5 sm:leading-7.5 [transition:background-color_5000000s_ease-in-out_0s]",
+    size === "xs" &&
+      "h-7 px-[calc(--spacing(2)-1px)] leading-7 sm:h-6 sm:leading-6",
     size === "sm" &&
       "h-7.5 px-[calc(--spacing(2.5)-1px)] leading-7.5 sm:h-6.5 sm:leading-6.5",
     size === "lg" && "h-9.5 leading-9.5 sm:h-8.5 sm:leading-8.5",

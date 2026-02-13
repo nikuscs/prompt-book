@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ExternalLink, Plus } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PromptCard } from "@/components/prompt-card";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/search-bar";
 import { ScrollAreaVanilla } from "@/components/ui/scroll-area-vanilla";
 
 type Prompt = {
@@ -16,15 +16,14 @@ type Prompt = {
   searched: number;
 };
 
-const PROMPTS_STORAGE_KEY = "promptbook.prompts.v1";
 const MAIN_WINDOW_WIDTH = 720;
 const MAIN_WINDOW_MIN_HEIGHT = 280;
 const MAIN_WINDOW_MAX_HEIGHT = 620;
 const MAIN_LIST_MAX_HEIGHT = 430;
 const MENUBAR_WINDOW_WIDTH = 330;
-const MENUBAR_WINDOW_MIN_HEIGHT = 220;
+const MENUBAR_WINDOW_MIN_HEIGHT = 320;
 const MENUBAR_WINDOW_MAX_HEIGHT = 520;
-const MENUBAR_LIST_MIN_HEIGHT = 64;
+const MENUBAR_LIST_MIN_HEIGHT = 110;
 const MENUBAR_LIST_MAX_HEIGHT = 340;
 
 const seedPrompts: Prompt[] = [
@@ -66,11 +65,12 @@ function App() {
   const menubarHeaderRef = useRef<HTMLDivElement | null>(null);
   const menubarListInnerRef = useRef<HTMLDivElement | null>(null);
   const menubarLastHeightRef = useRef<number>(0);
+  const loadedPromptsRef = useRef(false);
   const [menubarListHeight, setMenubarListHeight] = useState<number>(MENUBAR_LIST_MIN_HEIGHT);
 
-  const persistPrompts = (nextPrompts: Prompt[]) => {
+  const persistPrompts = async (nextPrompts: Prompt[]) => {
     try {
-      localStorage.setItem(PROMPTS_STORAGE_KEY, JSON.stringify(nextPrompts));
+      await invoke("save_prompts", { prompts: nextPrompts });
     } catch (error) {
       console.error("Failed to save prompts:", error);
     }
@@ -81,22 +81,34 @@ function App() {
   }, []);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PROMPTS_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Prompt[];
-      if (!Array.isArray(parsed) || parsed.length === 0) return;
-      setPrompts(parsed);
-      setSelectedId(parsed[0].id);
-      setExpandedId(parsed[0].id);
-    } catch (error) {
-      console.error("Failed to load prompts:", error);
-    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const loaded = await invoke<Prompt[]>("load_prompts");
+        if (cancelled) return;
+        if (loaded.length > 0) {
+          setPrompts(loaded);
+          setSelectedId(loaded[0].id);
+          setExpandedId(loaded[0].id);
+        } else {
+          await persistPrompts(seedPrompts);
+        }
+      } catch (error) {
+        console.error("Failed to load prompts:", error);
+      } finally {
+        loadedPromptsRef.current = true;
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
+    if (!loadedPromptsRef.current) return;
     const timeout = setTimeout(() => {
-      persistPrompts(prompts);
+      void persistPrompts(prompts);
     }, 220);
     return () => clearTimeout(timeout);
   }, [prompts]);
@@ -106,7 +118,7 @@ function App() {
       const isSave = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
       if (!isSave) return;
       event.preventDefault();
-      persistPrompts(prompts);
+      void persistPrompts(prompts);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -275,6 +287,31 @@ function App() {
     await invoke("open_main_window");
   };
 
+  const openPromptInEditor = async (prompt: Prompt, editor: "cursor" | "vscode" | "zed") => {
+    try {
+      await invoke("open_prompt_in_editor", {
+        editor,
+        title: prompt.title,
+        content: prompt.content,
+      });
+    } catch (error) {
+      console.error(`Failed to open prompt in ${editor}:`, error);
+    }
+  };
+
+  const copyPromptPath = async (prompt: Prompt) => {
+    try {
+      await persistPrompts(prompts);
+      const path = await invoke<string>("get_prompt_path", {
+        promptId: prompt.id,
+        title: prompt.title,
+      });
+      await navigator.clipboard.writeText(path);
+    } catch (error) {
+      console.error("Failed to copy prompt path:", error);
+    }
+  };
+
   const startWindowDrag = () => {
     if (windowLabel !== "main") return;
     void getCurrentWindow().startDragging();
@@ -305,14 +342,9 @@ function App() {
                   <ExternalLink className="size-3.5" />
                 </Button>
               </div>
-              <Input
-                autoFocus
-                size="sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search prompts..."
-                className="text-[12px]"
-              />
+              <div className="flex items-center gap-1.5">
+                <SearchBar autoFocus value={search} onChange={setSearch} onAdd={addPrompt} className="flex-1" />
+              </div>
             </div>
             <div className="px-3 pb-2.5 pt-0">
               <ScrollAreaVanilla
@@ -334,6 +366,8 @@ function App() {
                         isCopied={isCopied}
                         onSelect={() => setSelectedId(prompt.id)}
                         onCopy={() => copyPrompt(prompt)}
+                        onOpenInEditor={(editor) => openPromptInEditor(prompt, editor)}
+                        onCopyPath={() => copyPromptPath(prompt)}
                       />
                     );
                   })}
@@ -351,16 +385,7 @@ function App() {
       <div className="absolute left-28 right-0 top-0 h-10" data-tauri-drag-region onMouseDown={startWindowDrag} />
       <div ref={mainContentRef} className="flex h-full min-h-0 flex-col">
         <div className="shrink-0 flex items-center gap-2 pb-2">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search prompts..."
-            className="flex-1"
-          />
-          <Button variant="outline" onClick={addPrompt}>
-            <Plus className="size-3.5" />
-            Add
-          </Button>
+          <SearchBar value={search} onChange={setSearch} onAdd={addPrompt} className="flex-1" />
         </div>
         <ScrollAreaVanilla
           className="min-h-0 flex-1"
@@ -397,6 +422,8 @@ function App() {
                   }}
                   onCancelEdit={() => setEditingTitleId(null)}
                   onCopy={() => copyPrompt(prompt)}
+                  onOpenInEditor={(editor) => openPromptInEditor(prompt, editor)}
+                  onCopyPath={() => copyPromptPath(prompt)}
                   onRequestDeleteConfirm={() => {
                     setDeleteConfirmId(prompt.id);
                     setTimeout(() => {

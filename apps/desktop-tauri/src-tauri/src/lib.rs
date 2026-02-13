@@ -1,6 +1,10 @@
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, Position, Size, WindowEvent};
+mod storage;
+use std::fs;
+use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt as PanelManagerExt, PanelLevel, StyleMask,
@@ -10,6 +14,87 @@ use tauri_nspanel::{
 #[tauri::command]
 fn ping() -> &'static str {
     "pong"
+}
+
+#[tauri::command]
+fn load_prompts() -> Result<Vec<storage::PromptRecord>, String> {
+    storage::load_prompts()
+}
+
+#[tauri::command]
+fn save_prompts(prompts: Vec<storage::PromptRecord>) -> Result<(), String> {
+    storage::save_prompts(prompts)
+}
+
+#[tauri::command]
+fn get_prompt_path(prompt_id: String, title: String) -> Result<String, String> {
+    storage::get_prompt_path(&prompt_id, &title)
+}
+
+fn slugify_title(title: &str) -> String {
+    let mut out = String::new();
+    let mut prev_dash = false;
+    for ch in title.chars().flat_map(|c| c.to_lowercase()) {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch);
+            prev_dash = false;
+        } else if !prev_dash {
+            out.push('-');
+            prev_dash = true;
+        }
+    }
+    let trimmed = out.trim_matches('-');
+    if trimmed.is_empty() {
+        "untitled".to_string()
+    } else {
+        trimmed.chars().take(72).collect()
+    }
+}
+
+#[tauri::command]
+fn open_prompt_in_editor(editor: String, title: String, content: String) -> Result<(), String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME is not set".to_string())?;
+    let temp_dir = std::path::PathBuf::from(home)
+        .join(".config")
+        .join("promptbook")
+        .join(".tmp");
+    fs::create_dir_all(&temp_dir).map_err(|e| format!("create temp dir: {}", e))?;
+
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let file_name = format!("{}-{}.md", slugify_title(&title), ts);
+    let file_path = temp_dir.join(file_name);
+    fs::write(&file_path, content).map_err(|e| format!("write temp prompt: {}", e))?;
+
+    #[cfg(target_os = "macos")]
+    {
+        let app_name = match editor.as_str() {
+            "cursor" => "Cursor",
+            "vscode" => "Visual Studio Code",
+            "zed" => "Zed",
+            _ => return Err("Unsupported editor".to_string()),
+        };
+
+        let status = Command::new("open")
+            .arg("-a")
+            .arg(app_name)
+            .arg(&file_path)
+            .status()
+            .map_err(|e| format!("open editor: {}", e))?;
+
+        if status.success() {
+            return Ok(());
+        }
+        return Err(format!("Failed to open {}.", app_name));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = editor;
+        Err("Open in editor is only supported on macOS right now.".to_string())
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -229,7 +314,14 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![ping, open_main_window])
+        .invoke_handler(tauri::generate_handler![
+            ping,
+            open_main_window,
+            load_prompts,
+            save_prompts,
+            get_prompt_path,
+            open_prompt_in_editor
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
