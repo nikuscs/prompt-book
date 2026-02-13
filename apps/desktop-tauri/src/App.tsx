@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Check, ChevronDown, Copy, Expand, Plus } from "lucide-react";
+import { Check, ChevronDown, Copy, Expand, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollAreaVanilla } from "@/components/ui/scroll-area-vanilla";
 import { Textarea } from "@/components/ui/textarea";
 
 type Prompt = {
@@ -14,6 +16,12 @@ type Prompt = {
   copied: number;
   searched: number;
 };
+
+const PROMPTS_STORAGE_KEY = "promptbook.prompts.v1";
+const MAIN_WINDOW_WIDTH = 720;
+const MAIN_WINDOW_MIN_HEIGHT = 280;
+const MAIN_WINDOW_MAX_HEIGHT = 620;
+const MAIN_LIST_MAX_HEIGHT = 430;
 
 const seedPrompts: Prompt[] = [
   {
@@ -57,10 +65,73 @@ function App() {
   const [editingTitleValue, setEditingTitleValue] = useState("");
   const [windowLabel, setWindowLabel] = useState("main");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const mainContentRef = useRef<HTMLDivElement | null>(null);
+
+  const persistPrompts = (nextPrompts: Prompt[]) => {
+    try {
+      localStorage.setItem(PROMPTS_STORAGE_KEY, JSON.stringify(nextPrompts));
+    } catch (error) {
+      console.error("Failed to save prompts:", error);
+    }
+  };
 
   useEffect(() => {
     setWindowLabel(getCurrentWindow().label);
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PROMPTS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Prompt[];
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      setPrompts(parsed);
+      setSelectedId(parsed[0].id);
+      setExpandedId(parsed[0].id);
+    } catch (error) {
+      console.error("Failed to load prompts:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      persistPrompts(prompts);
+    }, 220);
+    return () => clearTimeout(timeout);
+  }, [prompts]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const isSave = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
+      if (!isSave) return;
+      event.preventDefault();
+      persistPrompts(prompts);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [prompts]);
+
+  useEffect(() => {
+    if (windowLabel !== "main") return;
+    const window = getCurrentWindow();
+    const resizeToContent = () => {
+      const content = mainContentRef.current;
+      if (!content) return;
+      const desiredHeight = Math.ceil(content.scrollHeight + 18);
+      const nextHeight = Math.min(MAIN_WINDOW_MAX_HEIGHT, Math.max(MAIN_WINDOW_MIN_HEIGHT, desiredHeight));
+      void window.setSize(new LogicalSize(MAIN_WINDOW_WIDTH, nextHeight));
+    };
+
+    const timer = setTimeout(resizeToContent, 20);
+    const observer = new ResizeObserver(() => resizeToContent());
+    if (mainContentRef.current) observer.observe(mainContentRef.current);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [windowLabel, prompts, search, expandedId, editingTitleId]);
 
   const filteredPrompts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -112,6 +183,31 @@ function App() {
     setPrompts((prev) => [prompt, ...prev]);
     setSelectedId(prompt.id);
     setExpandedId(prompt.id);
+  };
+
+  const deletePrompt = (promptId: string) => {
+    const remaining = prompts.filter((p) => p.id !== promptId);
+    setPrompts(remaining);
+
+    if (remaining.length === 0) {
+      setSelectedId("");
+      setExpandedId("");
+      return;
+    }
+
+    if (selectedId === promptId) {
+      setSelectedId(remaining[0].id);
+    }
+    if (expandedId === promptId) {
+      setExpandedId(remaining[0].id);
+    }
+    if (editingTitleId === promptId) {
+      setEditingTitleId(null);
+      setEditingTitleValue("");
+    }
+    if (deleteConfirmId === promptId) {
+      setDeleteConfirmId(null);
+    }
   };
 
   const openMainWindow = async () => {
@@ -188,8 +284,8 @@ function App() {
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-background px-4 pb-4 pt-11 text-foreground">
       <div className="absolute left-28 right-0 top-0 h-10" data-tauri-drag-region onMouseDown={startWindowDrag} />
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-center gap-2 pb-2">
+      <div ref={mainContentRef} className="flex h-full min-h-0 flex-col">
+        <div className="shrink-0 flex items-center gap-2 pb-2">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -201,11 +297,17 @@ function App() {
             Add
           </Button>
         </div>
-        <ScrollArea className="min-h-0 flex-1 pr-1">
-          <div className="space-y-1.5 pb-1">
+        <ScrollAreaVanilla
+          className="min-h-0 flex-1"
+          viewportClassName="p-0 pr-1 pb-1"
+          style={{ maxHeight: `${MAIN_LIST_MAX_HEIGHT}px` }}
+          showScrollIndicators
+        >
+          <div className="space-y-1.5">
             {filteredPrompts.map((prompt) => {
               const isExpanded = expandedId === prompt.id;
-                const isCopied = copiedId === prompt.id;
+              const isCopied = copiedId === prompt.id;
+              const isDeleteConfirm = deleteConfirmId === prompt.id;
               return (
                 <div key={prompt.id} className="rounded-lg border border-border bg-card">
                   <div className="flex items-center gap-1.5 px-2.5 py-1.5">
@@ -273,6 +375,25 @@ function App() {
                       {isCopied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                       {isCopied ? "Copied" : "Copy"}
                     </Button>
+                    <Button
+                      size="xs"
+                      variant={isDeleteConfirm ? "secondary" : "ghost"}
+                      className={isDeleteConfirm ? "text-destructive" : "text-muted-foreground hover:text-foreground"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isDeleteConfirm) {
+                          deletePrompt(prompt.id);
+                          return;
+                        }
+                        setDeleteConfirmId(prompt.id);
+                        setTimeout(() => {
+                          setDeleteConfirmId((id) => (id === prompt.id ? null : id));
+                        }, 1600);
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                      {isDeleteConfirm ? "Sure?" : null}
+                    </Button>
                   </div>
                   {isExpanded ? (
                     <div className="border-t border-border px-2.5 pb-2.5 pt-2">
@@ -287,7 +408,7 @@ function App() {
               );
             })}
           </div>
-        </ScrollArea>
+        </ScrollAreaVanilla>
       </div>
     </main>
   );

@@ -180,8 +180,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_nspanel::init())
         .on_window_event(|window, event| {
-            if window.label() == "menubar" && matches!(event, WindowEvent::Focused(false)) {
-                let _ = window.hide();
+            match event {
+                WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                WindowEvent::Focused(false) if window.label() == "menubar" => {
+                    let _ = window.hide();
+                }
+                _ => {}
             }
         })
         .setup(|app| {
