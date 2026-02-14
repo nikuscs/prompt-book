@@ -1,89 +1,16 @@
-import type { Prompt } from "@/types/prompt";
-import { PromptCard } from "@/components/prompt-card";
+import { PromptCardMain } from "@/components/prompt-card-main";
+import { PromptCardMenubar } from "@/components/prompt-card-menubar";
+import { usePromptStoreContext } from "@/contexts/prompt-store-context";
 
-type PromptListProps = {
-  prompts: Prompt[];
-  variant: "main" | "menubar";
-  selectedId?: string;
-  expandedId?: string;
-  copiedId?: string | null;
-  deleteConfirmId?: string | null;
-  editingTitleId?: string | null;
-  editingTitleValue?: string;
-  focusPromptRequest?: { promptId: string; token: number } | null;
-  onSelect?: (promptId: string) => void;
-  onToggle?: (promptId: string) => void;
-  onStartEdit?: (prompt: Prompt) => void;
-  onCommitTitle?: (promptId: string, value: string) => void;
-  onCancelEdit?: () => void;
-  onCopy: (prompt: Prompt) => void;
-  onEdit?: (prompt: Prompt) => void;
-  onCopyPath: (prompt: Prompt) => void;
-  onOpenInEditor: (prompt: Prompt, editor: "cursor" | "vscode" | "zed") => void;
-  onRequestDeleteConfirm?: (promptId: string) => void;
-  onDelete?: (promptId: string) => void;
-  onContentChange?: (promptId: string, value: string) => void;
-};
+export function PromptList({ variant }: { variant: "main" | "menubar" }) {
+  const { filteredPrompts } = usePromptStoreContext();
+  const Card = variant === "main" ? PromptCardMain : PromptCardMenubar;
 
-export function PromptList({
-  prompts,
-  variant,
-  selectedId = "",
-  expandedId = "",
-  copiedId = null,
-  deleteConfirmId = null,
-  editingTitleId = null,
-  editingTitleValue = "",
-  focusPromptRequest = null,
-  onSelect,
-  onToggle,
-  onStartEdit,
-  onCommitTitle,
-  onCancelEdit,
-  onCopy,
-  onEdit,
-  onCopyPath,
-  onOpenInEditor,
-  onRequestDeleteConfirm,
-  onDelete,
-  onContentChange,
-}: PromptListProps) {
   return (
     <div className="space-y-1.5">
-      {prompts.map((prompt) => {
-        const isSelected = prompt.id === selectedId;
-        const isExpanded = prompt.id === expandedId;
-        const isCopied = copiedId === prompt.id;
-        const isDeleteConfirm = deleteConfirmId === prompt.id;
-        const isEditingTitle = editingTitleId === prompt.id;
-
-        return (
-          <PromptCard
-            key={prompt.id}
-            prompt={prompt}
-            variant={variant}
-            selected={isSelected}
-            isExpanded={isExpanded}
-            isCopied={isCopied}
-            isDeleteConfirm={isDeleteConfirm}
-            editingTitle={isEditingTitle}
-            editingTitleValue={editingTitleValue}
-            onSelect={() => onSelect?.(prompt.id)}
-            onToggle={() => onToggle?.(prompt.id)}
-            onStartEdit={() => onStartEdit?.(prompt)}
-            onCommitTitle={(value) => onCommitTitle?.(prompt.id, value)}
-            onCopy={() => onCopy(prompt)}
-            onCopyPath={() => onCopyPath(prompt)}
-            onOpenInEditor={(editor) => onOpenInEditor(prompt, editor)}
-            {...(focusPromptRequest?.promptId === prompt.id ? { focusToken: focusPromptRequest.token } : {})}
-            {...(onEdit ? { onEdit: () => onEdit(prompt) } : {})}
-            {...(onCancelEdit ? { onCancelEdit } : {})}
-            {...(onRequestDeleteConfirm ? { onRequestDeleteConfirm: () => onRequestDeleteConfirm(prompt.id) } : {})}
-            {...(onDelete ? { onDelete: () => onDelete(prompt.id) } : {})}
-            {...(onContentChange ? { onContentChange: (value: string) => onContentChange(prompt.id, value) } : {})}
-          />
-        );
-      })}
+      {filteredPrompts.map((prompt) => (
+        <Card key={prompt.id} prompt={prompt} />
+      ))}
     </div>
   );
 }

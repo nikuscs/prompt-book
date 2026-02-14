@@ -15,7 +15,6 @@ interface ScrollAreaVanillaProps extends Omit<ComponentProps<"div">, "onScroll">
   labelLeft?: string
   labelRight?: string
   orientation?: "vertical" | "horizontal" | "both"
-  showScrollIndicators?: boolean
   viewportClassName?: string
   onScroll?: () => void
   onAtTop?: () => void
@@ -50,7 +49,6 @@ export function ScrollAreaVanilla({
   labelRight = "More →",
   className,
   orientation = "vertical",
-  showScrollIndicators = true,
   viewportClassName,
   onScroll,
   onAtTop,
@@ -240,10 +238,9 @@ export function ScrollAreaVanilla({
         {children}
       </div>
 
-      {showScrollIndicators ? (
-        <>
-          <AnimatePresence>
-            {scrollState.showBottomButton ? (
+      <>
+        <AnimatePresence>
+          {scrollState.showBottomButton ? (
               <motion.div
                 animate={{ opacity: 1, y: 0 }}
                 className="absolute inset-x-0 bottom-2 z-10 flex cursor-pointer select-none items-center justify-center"
@@ -283,11 +280,10 @@ export function ScrollAreaVanilla({
                 </Badge>
               </motion.div>
             ) : null}
-          </AnimatePresence>
-        </>
-      ) : null}
+        </AnimatePresence>
+      </>
 
-      {showScrollIndicators && (orientation === "horizontal" || orientation === "both") ? (
+      {orientation === "horizontal" || orientation === "both" ? (
         <>
           <AnimatePresence>
             {scrollState.showLeftButton ? (

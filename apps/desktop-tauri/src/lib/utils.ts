@@ -25,21 +25,12 @@ export function createSmartFade(
   const opaque = "rgba(0,0,0,1)"
   const edge = width + inset
 
-  if (orientation === "vertical") {
-    if (fadeStart && fadeEnd) {
-      return `linear-gradient(to bottom, ${transparent} 0px, ${opaque} ${edge}px, ${opaque} calc(100% - ${edge}px), ${transparent} 100%)`
-    }
-    if (fadeStart) {
-      return `linear-gradient(to bottom, ${transparent} 0px, ${opaque} ${edge}px, ${opaque} 100%)`
-    }
-    return `linear-gradient(to bottom, ${opaque} 0px, ${opaque} calc(100% - ${edge}px), ${transparent} 100%)`
-  }
+  const dir = orientation === "vertical" ? "to bottom" : "to right"
+  const stops: string[] = []
+  stops.push(fadeStart ? `${transparent} 0px` : `${opaque} 0px`)
+  if (fadeStart) stops.push(`${opaque} ${edge}px`)
+  if (fadeEnd) stops.push(`${opaque} calc(100% - ${edge}px)`)
+  stops.push(fadeEnd ? `${transparent} 100%` : `${opaque} 100%`)
 
-  if (fadeStart && fadeEnd) {
-    return `linear-gradient(to right, ${transparent} 0px, ${opaque} ${edge}px, ${opaque} calc(100% - ${edge}px), ${transparent} 100%)`
-  }
-  if (fadeStart) {
-    return `linear-gradient(to right, ${transparent} 0px, ${opaque} ${edge}px, ${opaque} 100%)`
-  }
-  return `linear-gradient(to right, ${opaque} 0px, ${opaque} calc(100% - ${edge}px), ${transparent} 100%)`
+  return `linear-gradient(${dir}, ${stops.join(", ")})`
 }

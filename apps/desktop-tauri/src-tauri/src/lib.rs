@@ -1,11 +1,17 @@
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Emitter;
-use tauri::{EventTarget, Manager, Position, Size, WindowEvent};
+use tauri::{Manager, Position, Size, WindowEvent};
 mod storage;
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSApplication, NSImage};
+#[cfg(target_os = "macos")]
+use objc2_foundation::NSData;
 use std::fs;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
+#[cfg(target_os = "macos")]
+use tauri_nspanel::objc2::AnyThread;
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt as PanelManagerExt, PanelLevel, StyleMask,
@@ -32,18 +38,9 @@ fn save_prompts(
     let payload = serde_json::json!({
         "source": window.label()
     });
-    // Emit directly to webview windows. Frontend uses `window.listen(...)`,
-    // which is tied to `EventTarget::webview_window(...)` delivery.
-    let _ = app.emit_to(
-        EventTarget::webview_window("main"),
-        "prompts-updated",
-        payload.clone(),
-    );
-    let _ = app.emit_to(
-        EventTarget::webview_window("menubar"),
-        "prompts-updated",
-        payload,
-    );
+    // Global emit so all windows receive the event, including NSPanel windows
+    // where targeted emit_to may not be delivered reliably.
+    let _ = app.emit("prompts-updated", payload);
     Ok(())
 }
 
@@ -185,16 +182,81 @@ fn open_main_window(app: tauri::AppHandle) {
 fn open_main_window_for_prompt(app: tauri::AppHandle, prompt_id: String) {
     open_main_window(app.clone());
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.emit("focus-prompt-editor", serde_json::json!({ "promptId": prompt_id }));
+        let _ = window.emit(
+            "focus-prompt-editor",
+            serde_json::json!({ "promptId": prompt_id }),
+        );
     }
 }
 
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(target_os = "macos")]
+        {
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+            set_dock_icon(app);
+            center_on_menubar_monitor(app, &window);
+        }
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
     }
+}
+
+#[cfg(target_os = "macos")]
+fn set_dock_icon(_app: &tauri::AppHandle) {
+    static ICON_ICNS: &[u8] = include_bytes!("../icons/icon.icns");
+    unsafe {
+        let data = NSData::with_bytes(ICON_ICNS);
+        if let Some(ns_image) = NSImage::initWithData(NSImage::alloc(), &data) {
+            let mtm = objc2_foundation::MainThreadMarker::new().unwrap();
+            let ns_app = NSApplication::sharedApplication(mtm);
+            ns_app.setApplicationIconImage(Some(&ns_image));
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn center_on_menubar_monitor(app: &tauri::AppHandle, main_window: &tauri::WebviewWindow) {
+    // Find which monitor the menubar window is on and center main window there
+    let menubar_pos = app
+        .get_webview_window("menubar")
+        .and_then(|w| w.outer_position().ok());
+    let monitors = main_window.available_monitors().ok().unwrap_or_default();
+    if monitors.is_empty() {
+        return;
+    }
+
+    let monitor = if let Some(pos) = menubar_pos {
+        monitors
+            .iter()
+            .find(|m| {
+                let mp = m.position();
+                let ms = m.size();
+                pos.x >= mp.x
+                    && pos.x < mp.x + ms.width as i32
+                    && pos.y >= mp.y
+                    && pos.y < mp.y + ms.height as i32
+            })
+            .or_else(|| monitors.first())
+    } else {
+        monitors.first()
+    };
+
+    let Some(monitor) = monitor else { return };
+    let mp = monitor.position();
+    let ms = monitor.size();
+    let scale = monitor.scale_factor();
+    let win_size = main_window
+        .outer_size()
+        .unwrap_or(tauri::PhysicalSize::new(720, 440));
+
+    let x = mp.x + (ms.width as i32 - win_size.width as i32) / 2;
+    // Place slightly above center (1/3 from top)
+    let title_bar_phys = (28.0 * scale) as i32;
+    let y = mp.y + title_bar_phys + (ms.height as i32 - win_size.height as i32) / 3;
+
+    let _ = main_window.set_position(tauri::PhysicalPosition::new(x, y));
 }
 
 fn position_menubar_at_tray_icon(app: &tauri::AppHandle, icon_position: Position, icon_size: Size) {
@@ -272,7 +334,7 @@ fn toggle_menubar_window(app: &tauri::AppHandle, rect: tauri::Rect) {
             }
             // macOS quirk from OpenUsage: show first, then position for multi-monitor correctness.
             panel.show_and_make_key();
-            let _ = window.emit("menubar-opened", ());
+            let _ = app.emit("menubar-opened", ());
             position_menubar_at_tray_icon(app, rect.position, rect.size);
             return;
         }
@@ -285,7 +347,7 @@ fn toggle_menubar_window(app: &tauri::AppHandle, rect: tauri::Rect) {
         position_menubar_at_tray_icon(app, rect.position, rect.size);
         let _ = window.show();
         let _ = window.set_focus();
-        let _ = window.emit("menubar-opened", ());
+        let _ = app.emit("menubar-opened", ());
     }
 }
 
@@ -294,10 +356,16 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_nspanel::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .on_window_event(|window, event| match event {
             WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
                 api.prevent_close();
                 let _ = window.hide();
+                #[cfg(target_os = "macos")]
+                let _ = window
+                    .app_handle()
+                    .set_activation_policy(tauri::ActivationPolicy::Accessory);
             }
             WindowEvent::Focused(false) if window.label() == "menubar" => {
                 let _ = window.hide();
