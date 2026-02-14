@@ -16,4 +16,8 @@ export const WINDOW_MENUBAR_MAX_HEIGHT = 520;
 export const WINDOW_MENUBAR_LIST_MIN_HEIGHT = 110;
 export const WINDOW_MENUBAR_LIST_MAX_HEIGHT = 340;
 
+export const WINDOW_MAIN_CHROME_OFFSET = 18;
+export const WINDOW_MENUBAR_CHROME_OFFSET = 41;
+export const RESIZE_SETTLE_MS = 20;
+
 export const APP_SHORTCUTS = [{ label: "SAVE", keys: ["CMD", "S"] }] as const;

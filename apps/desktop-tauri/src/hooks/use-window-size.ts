@@ -2,9 +2,12 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { RefObject, useEffect, useRef } from "react";
 import {
+  RESIZE_SETTLE_MS,
+  WINDOW_MAIN_CHROME_OFFSET,
   WINDOW_MAIN_MAX_HEIGHT,
   WINDOW_MAIN_MIN_HEIGHT,
   WINDOW_MAIN_WIDTH,
+  WINDOW_MENUBAR_CHROME_OFFSET,
   WINDOW_MENUBAR_LIST_MAX_HEIGHT,
   WINDOW_MENUBAR_LIST_MIN_HEIGHT,
   WINDOW_MENUBAR_MAX_HEIGHT,
@@ -27,12 +30,12 @@ export function useWindowMainSize({
     const resizeToContent = () => {
       const content = contentRef.current;
       if (!content) return;
-      const desiredHeight = Math.ceil(content.scrollHeight + 18);
+      const desiredHeight = Math.ceil(content.scrollHeight + WINDOW_MAIN_CHROME_OFFSET);
       const nextHeight = Math.min(WINDOW_MAIN_MAX_HEIGHT, Math.max(WINDOW_MAIN_MIN_HEIGHT, desiredHeight));
       void window.setSize(new LogicalSize(WINDOW_MAIN_WIDTH, nextHeight));
     };
 
-    const timer = setTimeout(resizeToContent, 20);
+    const timer = setTimeout(resizeToContent, RESIZE_SETTLE_MS);
     const observer = new ResizeObserver(() => resizeToContent());
     if (contentRef.current) observer.observe(contentRef.current);
 
@@ -69,8 +72,7 @@ export function useWindowMenubarSize({
       const naturalListHeight = Math.ceil(listInner.scrollHeight);
       const clampedListHeight = Math.min(WINDOW_MENUBAR_LIST_MAX_HEIGHT, Math.max(WINDOW_MENUBAR_LIST_MIN_HEIGHT, naturalListHeight));
 
-      // pt-1.5(6) + arrow(7) + mt-1(4) + border(2) + list-pb-2.5(10) + p-3 bottom(12) = 41
-      const desiredHeight = Math.ceil(header.offsetHeight + clampedListHeight + 41);
+      const desiredHeight = Math.ceil(header.offsetHeight + clampedListHeight + WINDOW_MENUBAR_CHROME_OFFSET);
       const nextHeight = Math.min(WINDOW_MENUBAR_MAX_HEIGHT, Math.max(WINDOW_MENUBAR_MIN_HEIGHT, desiredHeight));
       if (Math.abs(nextHeight - lastHeightRef.current) <= 1) return;
 
@@ -78,7 +80,7 @@ export function useWindowMenubarSize({
       void window.setSize(new LogicalSize(WINDOW_MENUBAR_WIDTH, nextHeight));
     };
 
-    const timer = setTimeout(resizeToContent, 20);
+    const timer = setTimeout(resizeToContent, RESIZE_SETTLE_MS);
     const observer = new ResizeObserver(() => resizeToContent());
     if (contentRef.current) observer.observe(contentRef.current);
 

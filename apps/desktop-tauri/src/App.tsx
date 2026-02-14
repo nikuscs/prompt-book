@@ -1,19 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { WindowMainView } from "@/components/windows/window-main-view";
 import { WindowMenubarView } from "@/components/windows/window-menubar-view";
+import { PromptStoreProvider, type PromptStoreContextType } from "@/contexts/prompt-store-context";
 import { usePromptStore } from "@/hooks/use-prompt-store";
+import { useTauriEvent } from "@/hooks/use-tauri-event";
 import { useWindowGuards } from "@/hooks/use-window-guards";
 import { useWindowMainSize, useWindowMenubarSize } from "@/hooks/use-window-size";
-import { UNNAMED_PROMPT_TITLE } from "@/lib/constants";
-import type { Prompt } from "@/types/prompt";
 
-type FocusPromptEditorPayload = {
-  promptId: string;
-};
+type FocusPromptEditorPayload = { promptId: string };
 
 function App() {
   const [windowLabel, setWindowLabel] = useState("main");
@@ -25,26 +22,20 @@ function App() {
   const menubarListInnerRef = useRef<HTMLDivElement | null>(null);
   const saveToastTimerRef = useRef<number | null>(null);
 
-  const promptStore = usePromptStore();
-  const { forceSave, reloadPrompts } = promptStore;
-  const { setSelectedId, setExpandedId } = promptStore;
+  const store = usePromptStore();
 
-  const showSaveToast = () => {
+  const showSaveToast = useCallback(() => {
     setSaveToastVisible(true);
-    if (saveToastTimerRef.current !== null) {
-      window.clearTimeout(saveToastTimerRef.current);
-    }
+    if (saveToastTimerRef.current !== null) window.clearTimeout(saveToastTimerRef.current);
     saveToastTimerRef.current = window.setTimeout(() => {
       setSaveToastVisible(false);
       saveToastTimerRef.current = null;
     }, 1200);
-  };
+  }, []);
 
   useEffect(() => {
     return () => {
-      if (saveToastTimerRef.current !== null) {
-        window.clearTimeout(saveToastTimerRef.current);
-      }
+      if (saveToastTimerRef.current !== null) window.clearTimeout(saveToastTimerRef.current);
     };
   }, []);
 
@@ -52,101 +43,94 @@ function App() {
     setWindowLabel(getCurrentWindow().label);
   }, []);
 
+  // Menubar: reload on open + visibility fallback
   useEffect(() => {
     if (windowLabel !== "menubar") return;
-    let unlistenOpen: (() => void) | null = null;
-    let mounted = true;
+    void store.reloadPrompts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowLabel]);
 
-    void reloadPrompts();
-
-    // Global event from Rust when the menubar panel is opened
-    void listen("menubar-opened", () => {
-      void reloadPrompts();
-    }).then((fn) => {
-      if (!mounted) {
-        fn();
-        return;
-      }
-      unlistenOpen = fn;
-    });
-
-    // Fallback: reload when the WebView becomes visible (NSPanel show)
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void reloadPrompts();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      mounted = false;
-      unlistenOpen?.();
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [reloadPrompts, windowLabel]);
-
-  useEffect(() => {
-    if (windowLabel !== "main") return;
-    let unlisten: (() => void) | null = null;
-    let mounted = true;
-    const window = getCurrentWindow();
-
-    void window.listen<FocusPromptEditorPayload>("focus-prompt-editor", (event) => {
-      const promptId = event.payload?.promptId;
-      if (!promptId) return;
-      setSelectedId(promptId);
-      setExpandedId(promptId);
-      setFocusPromptRequest((prev) => ({
-        promptId,
-        token: (prev?.token ?? 0) + 1,
-      }));
-    }).then((fn) => {
-      if (!mounted) {
-        fn();
-        return;
-      }
-      unlisten = fn;
-    });
-
-    return () => {
-      mounted = false;
-      unlisten?.();
-    };
-  }, [setExpandedId, setSelectedId, windowLabel]);
-
-  useWindowGuards(() => {
-    void forceSave().then((saved) => {
-      if (saved) showSaveToast();
-    });
+  useTauriEvent("menubar-opened", () => {
+    if (windowLabel !== "menubar") return;
+    void store.reloadPrompts();
   });
 
   useEffect(() => {
+    if (windowLabel !== "menubar") return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void store.reloadPrompts();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [store.reloadPrompts, windowLabel]);
+
+  // Main: focus prompt editor from menubar
+  useEffect(() => {
     if (windowLabel !== "main") return;
-    const window = getCurrentWindow();
     let unlisten: (() => void) | null = null;
     let mounted = true;
 
-    void window.onFocusChanged(({ payload: focused }) => {
-      if (focused) return;
-      void forceSave();
-    }).then((fn) => {
-      if (!mounted) {
-        fn();
-        return;
-      }
-      unlisten = fn;
-    });
+    void getCurrentWindow()
+      .listen<FocusPromptEditorPayload>("focus-prompt-editor", (event) => {
+        const promptId = event.payload?.promptId;
+        if (!promptId) return;
+        store.setSelectedId(promptId);
+        store.setExpandedId(promptId);
+        setFocusPromptRequest((prev) => ({ promptId, token: (prev?.token ?? 0) + 1 }));
+      })
+      .then((fn) => {
+        if (!mounted) {
+          fn();
+          return;
+        }
+        unlisten = fn;
+      });
 
     return () => {
       mounted = false;
       unlisten?.();
     };
-  }, [forceSave, windowLabel]);
+  }, [store.setSelectedId, store.setExpandedId, windowLabel]);
 
+  // Save on Cmd+S and before close
+  useWindowGuards(
+    useCallback(() => {
+      void store.forceSave().then((saved) => {
+        if (saved) showSaveToast();
+      });
+    }, [store.forceSave, showSaveToast]),
+  );
+
+  // Main: save on blur
+  useEffect(() => {
+    if (windowLabel !== "main") return;
+    let unlisten: (() => void) | null = null;
+    let mounted = true;
+
+    void getCurrentWindow()
+      .onFocusChanged(({ payload: focused }) => {
+        if (focused) return;
+        void store.forceSave();
+      })
+      .then((fn) => {
+        if (!mounted) {
+          fn();
+          return;
+        }
+        unlisten = fn;
+      });
+
+    return () => {
+      mounted = false;
+      unlisten?.();
+    };
+  }, [store.forceSave, windowLabel]);
+
+  // Window sizing
   useWindowMainSize({
     enabled: windowLabel === "main",
     contentRef: mainContentRef,
-    deps: [promptStore.prompts, promptStore.search, promptStore.expandedId, promptStore.editingTitleId],
+    deps: [store.prompts, store.search, store.expandedId, store.editingTitleId],
   });
 
   useWindowMenubarSize({
@@ -154,89 +138,69 @@ function App() {
     contentRef: menubarContentRef,
     headerRef: menubarHeaderRef,
     listInnerRef: menubarListInnerRef,
-    deps: [promptStore.filteredPrompts, promptStore.copiedId],
+    deps: [store.filteredPrompts, store.copiedId],
   });
+
+  // Context value for child components
+  const contextValue: PromptStoreContextType = {
+    filteredPrompts: store.filteredPrompts,
+    search: store.search,
+    selectedId: store.selectedId,
+    expandedId: store.expandedId,
+    copiedId: store.copiedId,
+    deleteConfirmId: store.deleteConfirmId,
+    editingTitleId: store.editingTitleId,
+    editingTitleValue: store.editingTitleValue,
+    focusPromptRequest,
+    setSearch: store.setSearch,
+    addPrompt: store.addPrompt,
+    selectPrompt: store.selectPrompt,
+    toggleExpanded: store.toggleExpanded,
+    copyPrompt: store.copyPrompt,
+    changeContent: store.savePrompt,
+    startEditTitle: store.startEditTitle,
+    commitTitle: (id, value) => {
+      void store.commitTitle(id, value).then((saved) => {
+        if (saved) showSaveToast();
+      });
+    },
+    cancelEditTitle: store.cancelEditTitle,
+    requestDeleteConfirm: store.requestDeleteConfirm,
+    deletePrompt: store.deletePrompt,
+    openInEditor: store.openPromptInEditor,
+    copyPath: store.copyPromptPath,
+    editInMainWindow: (prompt) => {
+      void invoke("open_main_window_for_prompt", { promptId: prompt.id });
+    },
+  };
 
   const openMainWindow = async () => {
     await invoke("open_main_window");
   };
 
-  const startWindowDrag = () => {
+  const startDrag = () => {
     if (windowLabel !== "main") return;
     void getCurrentWindow().startDragging();
   };
 
-  const toggleMainPrompt = (promptId: string) => {
-    promptStore.setSelectedId(promptId);
-    promptStore.setExpandedId((prev) => (prev === promptId ? "" : promptId));
-  };
-
-  const startEditPrompt = (prompt: Prompt) => {
-    promptStore.setEditingTitleId(prompt.id);
-    promptStore.setEditingTitleValue(prompt.title || UNNAMED_PROMPT_TITLE);
-  };
-
-  const commitPromptTitle = (promptId: string, value: string) => {
-    const normalized = value.trim() || UNNAMED_PROMPT_TITLE;
-    promptStore.setEditingTitleId(null);
-    void promptStore.savePromptTitleNow(promptId, normalized).then((saved) => {
-      if (saved) showSaveToast();
-    });
-  };
-
   if (windowLabel === "menubar") {
     return (
-      <WindowMenubarView
-        prompts={promptStore.filteredPrompts}
-        selectedId={promptStore.selectedId}
-        copiedId={promptStore.copiedId}
-        search={promptStore.search}
-        saveToastVisible={saveToastVisible}
-        contentRef={menubarContentRef}
-        headerRef={menubarHeaderRef}
-        listInnerRef={menubarListInnerRef}
-        onSearchChange={promptStore.setSearch}
-        onAddPrompt={promptStore.addPrompt}
-        onOpenMainWindow={openMainWindow}
-        onSelectPrompt={promptStore.setSelectedId}
-        onCopyPrompt={promptStore.copyPrompt}
-        onEditPrompt={(prompt) => {
-          void invoke("open_main_window_for_prompt", { promptId: prompt.id });
-        }}
-        onOpenPromptInEditor={promptStore.openPromptInEditor}
-        onCopyPromptPath={promptStore.copyPromptPath}
-      />
+      <PromptStoreProvider value={contextValue}>
+        <WindowMenubarView
+          saveToastVisible={saveToastVisible}
+          contentRef={menubarContentRef}
+          headerRef={menubarHeaderRef}
+          listInnerRef={menubarListInnerRef}
+          onOpenMainWindow={openMainWindow}
+        />
+      </PromptStoreProvider>
     );
   }
 
   return (
-    <WindowMainView
-      prompts={promptStore.filteredPrompts}
-      search={promptStore.search}
-      selectedId={promptStore.selectedId}
-      expandedId={promptStore.expandedId}
-      copiedId={promptStore.copiedId}
-      deleteConfirmId={promptStore.deleteConfirmId}
-      editingTitleId={promptStore.editingTitleId}
-      editingTitleValue={promptStore.editingTitleValue}
-      focusPromptRequest={focusPromptRequest}
-      saveToastVisible={saveToastVisible}
-      contentRef={mainContentRef}
-      onSearchChange={promptStore.setSearch}
-      onAddPrompt={promptStore.addPrompt}
-      onStartDrag={startWindowDrag}
-      onSelectPrompt={promptStore.setSelectedId}
-      onTogglePrompt={toggleMainPrompt}
-      onStartEditPrompt={startEditPrompt}
-      onCommitPromptTitle={commitPromptTitle}
-      onCancelEditPrompt={() => promptStore.setEditingTitleId(null)}
-      onCopyPrompt={promptStore.copyPrompt}
-      onOpenPromptInEditor={promptStore.openPromptInEditor}
-      onCopyPromptPath={promptStore.copyPromptPath}
-      onRequestDeleteConfirm={promptStore.requestDeleteConfirm}
-      onDeletePrompt={promptStore.deletePrompt}
-      onChangePromptContent={promptStore.savePrompt}
-    />
+    <PromptStoreProvider value={contextValue}>
+      <WindowMainView saveToastVisible={saveToastVisible} contentRef={mainContentRef} onStartDrag={startDrag} />
+    </PromptStoreProvider>
   );
 }
 

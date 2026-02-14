@@ -6,46 +6,26 @@ import { SaveToast } from "@/components/save-toast";
 import { SearchBar } from "@/components/search-bar";
 import { Button } from "@/components/ui/button";
 import { ScrollAreaVanilla } from "@/components/ui/scroll-area-vanilla";
+import { usePromptStoreContext } from "@/contexts/prompt-store-context";
 import { APP_NAME_MARK } from "@/lib/constants";
-import type { Prompt } from "@/types/prompt";
 
 type WindowMenubarViewProps = {
-  prompts: Prompt[];
-  selectedId: string;
-  copiedId: string | null;
-  search: string;
   saveToastVisible: boolean;
   contentRef: RefObject<HTMLDivElement | null>;
   headerRef: RefObject<HTMLDivElement | null>;
   listInnerRef: RefObject<HTMLDivElement | null>;
-  onSearchChange: (value: string) => void;
-  onAddPrompt: () => void;
   onOpenMainWindow: () => void;
-  onSelectPrompt: (promptId: string) => void;
-  onCopyPrompt: (prompt: Prompt) => void;
-  onEditPrompt: (prompt: Prompt) => void;
-  onOpenPromptInEditor: (prompt: Prompt, editor: "cursor" | "vscode" | "zed") => void;
-  onCopyPromptPath: (prompt: Prompt) => void;
 };
 
 export function WindowMenubarView({
-  prompts,
-  selectedId,
-  copiedId,
-  search,
   saveToastVisible,
   contentRef,
   headerRef,
   listInnerRef,
-  onSearchChange,
-  onAddPrompt,
   onOpenMainWindow,
-  onSelectPrompt,
-  onCopyPrompt,
-  onEditPrompt,
-  onOpenPromptInEditor,
-  onCopyPromptPath,
 }: WindowMenubarViewProps) {
+  const { search, setSearch, addPrompt } = usePromptStoreContext();
+
   return (
     <main className="h-screen w-screen overflow-hidden bg-transparent text-foreground">
       <div className="flex h-full w-full flex-col items-center bg-transparent p-3 pt-1.5">
@@ -70,22 +50,12 @@ export function WindowMenubarView({
                 <ExternalLink className="size-3.5" />
               </Button>
             </div>
-            <SearchBar autoFocus value={search} onChange={onSearchChange} onAdd={onAddPrompt} className="flex-1" />
+            <SearchBar autoFocus value={search} onChange={setSearch} onAdd={addPrompt} className="flex-1" />
           </div>
           <div className="min-h-0 flex-1 px-3 pb-2.5 pt-0">
             <ScrollAreaVanilla className="h-full min-h-0" viewportClassName="p-0 pr-1 pb-1" showScrollIndicators>
               <div ref={listInnerRef}>
-                <PromptList
-                  prompts={prompts}
-                  variant="menubar"
-                  selectedId={selectedId}
-                  copiedId={copiedId}
-                  onSelect={onSelectPrompt}
-                  onCopy={onCopyPrompt}
-                  onEdit={onEditPrompt}
-                  onOpenInEditor={onOpenPromptInEditor}
-                  onCopyPath={onCopyPromptPath}
-                />
+                <PromptList variant="menubar" />
               </div>
             </ScrollAreaVanilla>
           </div>
