@@ -64,9 +64,19 @@ Prompts are stored as markdown files in `~/.config/promptbook/`. Each prompt is 
 | `Cmd+C` | Copy prompt (when not editing) |
 | `E` | Open prompt in editor (menu bar) |
 
-## Quick Start
+## Building from Source
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) (stable)
+- [Bun](https://bun.sh/) v1.3.5+
+- macOS with Xcode Command Line Tools (`xcode-select --install`)
+
+### Setup
 
 ```bash
+git clone https://github.com/nikuscs/prompt-book.git
+cd prompt-book
 bun install
 bun run tauri:dev
 ```
