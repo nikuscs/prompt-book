@@ -7,22 +7,11 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "lint": "turbo lint",
+    "dev": "bun run --cwd apps/desktop-tauri tauri dev",
+    "build": "bun run --cwd apps/desktop-tauri tauri build && rm -rf dist/dmg-staging && mkdir -p dist/dmg-staging && cp -R apps/desktop-tauri/src-tauri/target/release/bundle/macos/PromptBook.app dist/dmg-staging/ && ln -s /Applications dist/dmg-staging/Applications && hdiutil create -volname PromptBook -srcfolder dist/dmg-staging -ov -format UDZO dist/PromptBook.dmg && rm -rf dist/dmg-staging",
     "typecheck": "turbo typecheck",
-    "lint:rust": "bun run --cwd apps/desktop-tauri lint:rust",
-    "lint:ts": "turbo lint",
-    "typecheck:ts": "turbo typecheck",
-    "typecheck:rust": "bun run --cwd apps/desktop-tauri typecheck:rust",
-    "coverage:rust": "bun run --cwd apps/desktop-tauri coverage:rust",
-    "fmt:rust": "bun run --cwd apps/desktop-tauri fmt:rust",
-    "fmt:rust:check": "bun run --cwd apps/desktop-tauri fmt:rust:check",
-    "check": "bun run lint && bun run typecheck && bun run fmt:rust:check",
-    "dev:desktop": "turbo -F @promptbook/desktop-tauri dev",
-    "tauri:dev": "bun run --cwd apps/desktop-tauri tauri dev",
-    "tauri:dev:lowcpu": "CARGO_BUILD_JOBS=2 bun run --cwd apps/desktop-tauri tauri dev",
-    "desktop:build": "bun run --cwd apps/desktop-tauri build"
+    "lint": "turbo lint",
+    "coverage": "cargo llvm-cov --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --summary-only"
   },
   "devDependencies": {
     "turbo": "^2.5.5"
