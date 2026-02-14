@@ -9,20 +9,14 @@ const DELETE_CONFIRM_TIMEOUT_MS = 1600;
 const COPY_FEEDBACK_TIMEOUT_MS = 1000;
 
 export function usePromptStore() {
-  // --- Selection state ---
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [expandedId, setExpandedId] = useState("");
-
-  // --- Title editing state ---
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editingTitleValue, setEditingTitleValue] = useState("");
-
-  // --- Feedback state ---
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // --- Persistence with selection reset callbacks ---
   const handleInitialLoad = useCallback((loaded: Prompt[]) => {
     const first = loaded[0];
     if (first) {
@@ -41,27 +35,19 @@ export function usePromptStore() {
     onExternalReload: handleExternalReload,
   });
 
-  // --- Derived data ---
   const filteredPrompts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return prompts;
     return prompts.filter((p) => p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q));
   }, [prompts, search]);
 
-  // --- Selection actions ---
   const selectPrompt = (id: string) => setSelectedId(id);
-
-  const expandPrompt = (id: string) => {
-    setSelectedId(id);
-    setExpandedId(id);
-  };
 
   const toggleExpanded = (id: string) => {
     setSelectedId(id);
     setExpandedId((prev) => (prev === id ? "" : id));
   };
 
-  // --- CRUD actions ---
   const addPrompt = () => {
     const prompt: Prompt = {
       id: crypto.randomUUID(),
@@ -112,7 +98,6 @@ export function usePromptStore() {
     }
   };
 
-  // --- Title editing actions ---
   const startEditTitle = (prompt: Prompt) => {
     setEditingTitleId(prompt.id);
     setEditingTitleValue(prompt.title || UNNAMED_PROMPT_TITLE);
@@ -126,7 +111,6 @@ export function usePromptStore() {
 
   const cancelEditTitle = () => setEditingTitleId(null);
 
-  // --- Feedback actions ---
   const copyPrompt = async (prompt: Prompt) => {
     try {
       await navigator.clipboard.writeText(prompt.content);
@@ -143,7 +127,6 @@ export function usePromptStore() {
     setTimeout(() => setDeleteConfirmId((prev) => (prev === id ? null : prev)), DELETE_CONFIRM_TIMEOUT_MS);
   };
 
-  // --- External actions ---
   const openPromptInEditor = async (prompt: Prompt, editor: "cursor" | "vscode" | "zed") => {
     try {
       await invoke("open_prompt_in_editor", { editor, title: prompt.title, content: prompt.content });
@@ -163,7 +146,6 @@ export function usePromptStore() {
   };
 
   return {
-    // Data
     prompts,
     filteredPrompts,
     search,
@@ -173,13 +155,10 @@ export function usePromptStore() {
     deleteConfirmId,
     editingTitleId,
     editingTitleValue,
-    // Stable dispatchers (for effect dependencies)
     setSelectedId,
     setExpandedId,
-    // Actions
     setSearch,
     selectPrompt,
-    expandPrompt,
     toggleExpanded,
     addPrompt,
     savePrompt,
@@ -191,7 +170,6 @@ export function usePromptStore() {
     requestDeleteConfirm,
     openPromptInEditor,
     copyPromptPath,
-    // Lifecycle
     reloadPrompts,
     forceSave,
   };

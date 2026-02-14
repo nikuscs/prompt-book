@@ -8,8 +8,6 @@ type SearchBarProps = {
   onChange: (value: string) => void;
   autoFocus?: boolean;
   onAdd?: () => void;
-  addLabel?: string;
-  disableFocusRing?: boolean;
   className?: string;
 };
 
@@ -18,14 +16,12 @@ export function SearchBar({
   onChange,
   autoFocus = false,
   onAdd,
-  addLabel = "Add",
-  disableFocusRing = true,
   className,
 }: SearchBarProps) {
   return (
     <InputGroup
       className={cn(
-        disableFocusRing && "has-focus-visible:ring-0 has-focus-visible:border-input",
+        "has-focus-visible:ring-0 has-focus-visible:border-input",
         className,
       )}
     >
@@ -39,7 +35,7 @@ export function SearchBar({
         <InputGroupAddon align="inline-end">
           <Button size="xs" variant="secondary" className="rounded-sm px-2 text-[11px]" onClick={onAdd}>
             <Plus className="size-3" />
-            {addLabel}
+            Add
           </Button>
         </InputGroupAddon>
       ) : null}

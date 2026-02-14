@@ -2,7 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { promptSeed } from "@/data/prompt-seed";
 import { useTauriEvent } from "@/hooks/use-tauri-event";
 import type { Prompt } from "@/types/prompt";
 
@@ -33,8 +32,8 @@ export function usePromptPersistence(callbacks?: {
   onInitialLoad?: (prompts: Prompt[]) => void;
   onExternalReload?: (prompts: Prompt[]) => void;
 }) {
-  const [prompts, setPrompts] = useState<Prompt[]>(promptSeed);
-  const promptsRef = useRef<Prompt[]>(promptSeed);
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const promptsRef = useRef<Prompt[]>([]);
   const loadedRef = useRef(false);
   const skipNextPersistRef = useRef(false);
   const windowLabelRef = useRef(getCurrentWindow().label);
@@ -64,10 +63,7 @@ export function usePromptPersistence(callbacks?: {
   const reloadPrompts = useCallback(async () => {
     try {
       const loaded = await invoke<Prompt[]>("load_prompts");
-      if (loaded.length === 0) {
-        await save(promptSeed);
-        return;
-      }
+      if (loaded.length === 0) return;
       let didChange = false;
       updatePrompts((prev) => {
         if (promptsEqual(prev, loaded)) return prev;
@@ -86,7 +82,6 @@ export function usePromptPersistence(callbacks?: {
     return save(promptsRef.current);
   }, [save]);
 
-  // Initial load
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -96,8 +91,6 @@ export function usePromptPersistence(callbacks?: {
         if (loaded.length > 0) {
           updatePrompts(loaded);
           onInitialLoadRef.current?.(loaded);
-        } else {
-          await save(promptSeed);
         }
       } catch (error) {
         console.error("Failed to load prompts:", error);
@@ -110,7 +103,6 @@ export function usePromptPersistence(callbacks?: {
     };
   }, [updatePrompts, save]);
 
-  // Autosave on change
   useEffect(() => {
     if (!loadedRef.current) return;
     if (skipNextPersistRef.current) {
@@ -123,7 +115,6 @@ export function usePromptPersistence(callbacks?: {
     return () => clearTimeout(timeout);
   }, [prompts, save]);
 
-  // Cross-window sync
   useTauriEvent<PromptsUpdatedPayload>("prompts-updated", (event) => {
     const source = event.payload?.source;
     if (source && source === windowLabelRef.current) return;

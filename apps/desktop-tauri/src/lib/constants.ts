@@ -1,8 +1,5 @@
-export const APP_NAME = "Promptbook ®";
-export const APP_NAME_UPPER = "PROMPTBOOK";
-export const APP_NAME_MARK = `${APP_NAME_UPPER} ®`;
-export const CURRENT_YEAR = new Date().getFullYear();
-export const APP_COPYRIGHT = `Copyright © - ${CURRENT_YEAR} ${APP_NAME}`;
+export const APP_NAME_MARK = "PROMPTBOOK ®";
+export const APP_COPYRIGHT = `Copyright © - ${new Date().getFullYear()} Promptbook ®`;
 export const UNNAMED_PROMPT_TITLE = "Unnamed";
 
 export const WINDOW_MAIN_WIDTH = 720;

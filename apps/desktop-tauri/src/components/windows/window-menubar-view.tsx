@@ -53,7 +53,7 @@ export function WindowMenubarView({
             <SearchBar autoFocus value={search} onChange={setSearch} onAdd={addPrompt} className="flex-1" />
           </div>
           <div className="min-h-0 flex-1 px-3 pb-2.5 pt-0">
-            <ScrollAreaVanilla className="h-full min-h-0" viewportClassName="p-0 pr-1 pb-1" showScrollIndicators>
+            <ScrollAreaVanilla className="h-full min-h-0" viewportClassName="p-0 pr-1 pb-1">
               <div ref={listInnerRef}>
                 <PromptList variant="menubar" />
               </div>

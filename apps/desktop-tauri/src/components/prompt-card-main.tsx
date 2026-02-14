@@ -30,7 +30,6 @@ export function PromptCardMain({ prompt }: { prompt: Prompt }) {
     store.commitTitle(prompt.id, value);
   }, [store, prompt.id]);
 
-  // Focus card and textarea when focus token changes
   useEffect(() => {
     if (!isExpanded || focusToken == null) return;
     const frame = window.requestAnimationFrame(() => {
@@ -45,7 +44,6 @@ export function PromptCardMain({ prompt }: { prompt: Prompt }) {
     return () => window.cancelAnimationFrame(frame);
   }, [focusToken, isExpanded]);
 
-  // Close title edit on outside click
   useEffect(() => {
     if (!isEditingTitle || !titleEditableRef.current) return;
     const onPointerDown = (event: PointerEvent) => {
@@ -56,7 +54,6 @@ export function PromptCardMain({ prompt }: { prompt: Prompt }) {
     return () => window.removeEventListener("pointerdown", onPointerDown, true);
   }, [commitTitleEdit, isEditingTitle]);
 
-  // Commit title before save shortcut
   useEffect(() => {
     if (!isEditingTitle) return;
     const onBeforeSave = (event: Event) => {

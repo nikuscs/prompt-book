@@ -43,12 +43,10 @@ function App() {
     setWindowLabel(getCurrentWindow().label);
   }, []);
 
-  // Menubar: reload on open + visibility fallback
   useEffect(() => {
     if (windowLabel !== "menubar") return;
     void store.reloadPrompts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [windowLabel]);
+  }, [windowLabel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useTauriEvent("menubar-opened", () => {
     if (windowLabel !== "menubar") return;
@@ -64,7 +62,6 @@ function App() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [store.reloadPrompts, windowLabel]);
 
-  // Main: focus prompt editor from menubar
   useEffect(() => {
     if (windowLabel !== "main") return;
     let unlisten: (() => void) | null = null;
@@ -92,7 +89,6 @@ function App() {
     };
   }, [store.setSelectedId, store.setExpandedId, windowLabel]);
 
-  // Save on Cmd+S and before close
   useWindowGuards(
     useCallback(() => {
       void store.forceSave().then((saved) => {
@@ -101,7 +97,6 @@ function App() {
     }, [store.forceSave, showSaveToast]),
   );
 
-  // Main: save on blur
   useEffect(() => {
     if (windowLabel !== "main") return;
     let unlisten: (() => void) | null = null;
@@ -126,7 +121,6 @@ function App() {
     };
   }, [store.forceSave, windowLabel]);
 
-  // Window sizing
   useWindowMainSize({
     enabled: windowLabel === "main",
     contentRef: mainContentRef,
@@ -141,7 +135,6 @@ function App() {
     deps: [store.filteredPrompts, store.copiedId],
   });
 
-  // Context value for child components
   const contextValue: PromptStoreContextType = {
     filteredPrompts: store.filteredPrompts,
     search: store.search,

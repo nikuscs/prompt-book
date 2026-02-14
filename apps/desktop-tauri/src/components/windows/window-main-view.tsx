@@ -28,7 +28,6 @@ export function WindowMainView({ saveToastVisible, contentRef, onStartDrag }: Wi
           className="min-h-0 flex-1"
           viewportClassName="p-0 pr-1 pb-1"
           style={{ maxHeight: `${WINDOW_MAIN_LIST_MAX_HEIGHT}px` }}
-          showScrollIndicators
         >
           <PromptList variant="main" />
         </ScrollAreaVanilla>
