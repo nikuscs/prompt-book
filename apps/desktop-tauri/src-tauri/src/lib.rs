@@ -3,20 +3,20 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::Emitter;
 use tauri::{Manager, Position, Size, WindowEvent};
 mod storage;
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSApplication, NSImage};
+#[cfg(target_os = "macos")]
+use objc2_foundation::NSData;
 use std::fs;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
+#[cfg(target_os = "macos")]
+use tauri_nspanel::objc2::AnyThread;
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
     tauri_panel, CollectionBehavior, ManagerExt as PanelManagerExt, PanelLevel, StyleMask,
     WebviewWindowExt,
 };
-#[cfg(target_os = "macos")]
-use objc2_app_kit::{NSApplication, NSImage};
-#[cfg(target_os = "macos")]
-use objc2_foundation::NSData;
-#[cfg(target_os = "macos")]
-use tauri_nspanel::objc2::AnyThread;
 
 #[tauri::command]
 fn ping() -> &'static str {
@@ -182,7 +182,10 @@ fn open_main_window(app: tauri::AppHandle) {
 fn open_main_window_for_prompt(app: tauri::AppHandle, prompt_id: String) {
     open_main_window(app.clone());
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.emit("focus-prompt-editor", serde_json::json!({ "promptId": prompt_id }));
+        let _ = window.emit(
+            "focus-prompt-editor",
+            serde_json::json!({ "promptId": prompt_id }),
+        );
     }
 }
 
@@ -360,7 +363,9 @@ pub fn run() {
                 api.prevent_close();
                 let _ = window.hide();
                 #[cfg(target_os = "macos")]
-                let _ = window.app_handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
+                let _ = window
+                    .app_handle()
+                    .set_activation_policy(tauri::ActivationPolicy::Accessory);
             }
             WindowEvent::Focused(false) if window.label() == "menubar" => {
                 let _ = window.hide();

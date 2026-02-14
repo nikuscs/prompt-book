@@ -46,7 +46,7 @@ function App() {
   useEffect(() => {
     if (windowLabel !== "menubar") return;
     void store.reloadPrompts();
-  }, [windowLabel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [windowLabel]);
 
   useTauriEvent("menubar-opened", () => {
     if (windowLabel !== "menubar") return;
