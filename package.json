@@ -1,0 +1,19 @@
+{
+  "name": "prompt-book-monorepo",
+  "private": true,
+  "packageManager": "bun@1.3.5",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd apps/desktop-tauri tauri dev",
+    "build": "bun run --cwd apps/desktop-tauri tauri build && rm -rf dist/dmg-staging && mkdir -p dist/dmg-staging && cp -R apps/desktop-tauri/src-tauri/target/release/bundle/macos/PromptBook.app dist/dmg-staging/ && ln -s /Applications dist/dmg-staging/Applications && hdiutil create -volname PromptBook -srcfolder dist/dmg-staging -ov -format UDZO dist/PromptBook.dmg && rm -rf dist/dmg-staging",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "coverage": "cargo llvm-cov --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --summary-only"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.5"
+  }
+}
