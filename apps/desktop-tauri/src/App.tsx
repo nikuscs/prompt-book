@@ -136,6 +136,7 @@ function App() {
   });
 
   const contextValue: PromptStoreContextType = {
+    promptCount: store.prompts.length,
     filteredPrompts: store.filteredPrompts,
     search: store.search,
     selectedId: store.selectedId,

@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type { Prompt } from "@/types/prompt";
 
 export type PromptStoreContextType = {
+  promptCount: number;
   filteredPrompts: Prompt[];
   search: string;
   selectedId: string;
@@ -12,7 +13,7 @@ export type PromptStoreContextType = {
   editingTitleValue: string;
   focusPromptRequest: { promptId: string; token: number } | null;
   setSearch: (value: string) => void;
-  addPrompt: () => void;
+  addPrompt: () => string;
   selectPrompt: (id: string) => void;
   toggleExpanded: (id: string) => void;
   copyPrompt: (prompt: Prompt) => void;

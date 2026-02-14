@@ -63,7 +63,6 @@ export function usePromptPersistence(callbacks?: {
   const reloadPrompts = useCallback(async () => {
     try {
       const loaded = await invoke<Prompt[]>("load_prompts");
-      if (loaded.length === 0) return;
       let didChange = false;
       updatePrompts((prev) => {
         if (promptsEqual(prev, loaded)) return prev;

@@ -48,7 +48,7 @@ export function usePromptStore() {
     setExpandedId((prev) => (prev === id ? "" : id));
   };
 
-  const addPrompt = () => {
+  const addPrompt = (): string => {
     const prompt: Prompt = {
       id: crypto.randomUUID(),
       title: UNNAMED_PROMPT_TITLE,
@@ -59,6 +59,7 @@ export function usePromptStore() {
     updatePrompts((prev) => [prompt, ...prev]);
     setSelectedId(prompt.id);
     setExpandedId(prompt.id);
+    return prompt.id;
   };
 
   const savePrompt = (id: string, content: string) => {
