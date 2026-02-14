@@ -41,5 +41,8 @@ jobs:
       - name: Install deps
         run: bun install --frozen-lockfile
 
-      - name: Run checks
-        run: bun run check
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
