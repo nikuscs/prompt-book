@@ -14,7 +14,6 @@ type WindowMenubarViewProps = {
   selectedId: string;
   copiedId: string | null;
   search: string;
-  listHeight: number;
   saveToastVisible: boolean;
   contentRef: RefObject<HTMLDivElement | null>;
   headerRef: RefObject<HTMLDivElement | null>;
@@ -34,7 +33,6 @@ export function WindowMenubarView({
   selectedId,
   copiedId,
   search,
-  listHeight,
   saveToastVisible,
   contentRef,
   headerRef,
@@ -54,9 +52,9 @@ export function WindowMenubarView({
         <div className="tray-arrow z-20 translate-y-1" />
         <div
           ref={contentRef}
-          className="relative mt-1 flex min-h-0 w-full flex-col overflow-hidden rounded-[20px] border border-border bg-card shadow-lg select-none"
+          className="relative mt-1 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[20px] border border-border bg-card shadow-lg select-none"
         >
-          <div ref={headerRef} className="px-3 pb-2 pt-1.5">
+          <div ref={headerRef} className="shrink-0 px-3 pb-2 pt-1.5">
             <div className="flex items-center justify-between gap-2 pb-2">
               <div className="text-[8px] tracking-[0.1em] text-muted-foreground/70" data-tauri-drag-region>
                 {APP_NAME_MARK}
@@ -74,8 +72,8 @@ export function WindowMenubarView({
             </div>
             <SearchBar autoFocus value={search} onChange={onSearchChange} onAdd={onAddPrompt} className="flex-1" />
           </div>
-          <div className="px-3 pb-2.5 pt-0">
-            <ScrollAreaVanilla className="min-h-0" viewportClassName="p-0 pr-1 pb-1" showScrollIndicators style={{ height: `${listHeight}px` }}>
+          <div className="min-h-0 flex-1 px-3 pb-2.5 pt-0">
+            <ScrollAreaVanilla className="h-full min-h-0" viewportClassName="p-0 pr-1 pb-1" showScrollIndicators>
               <div ref={listInnerRef}>
                 <PromptList
                   prompts={prompts}

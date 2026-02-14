@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -55,7 +56,7 @@ export function usePromptStore() {
     });
   }, []);
 
-  const persistPrompts = async (nextPrompts: Prompt[]): Promise<boolean> => {
+  const persistPrompts = useCallback(async (nextPrompts: Prompt[]): Promise<boolean> => {
     try {
       await invoke("save_prompts", { prompts: nextPrompts });
       return true;
@@ -63,7 +64,7 @@ export function usePromptStore() {
       console.error("Failed to save prompts:", error);
       return false;
     }
-  };
+  }, []);
 
   const reloadPrompts = useCallback(async () => {
     try {
@@ -87,7 +88,7 @@ export function usePromptStore() {
     } catch (error) {
       console.error("Failed to load prompts:", error);
     }
-  }, [updatePrompts]);
+  }, [updatePrompts, persistPrompts]);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +116,7 @@ export function usePromptStore() {
     return () => {
       cancelled = true;
     };
-  }, [updatePrompts]);
+  }, [updatePrompts, persistPrompts]);
 
   useEffect(() => {
     if (!loadedPromptsRef.current) return;
@@ -127,14 +128,13 @@ export function usePromptStore() {
       void persistPrompts(prompts);
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timeout);
-  }, [prompts]);
+  }, [prompts, persistPrompts]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     let mounted = true;
-    const window = getCurrentWindow();
 
-    void window.listen<PromptsUpdatedPayload>("prompts-updated", (event) => {
+    void listen<PromptsUpdatedPayload>("prompts-updated", (event) => {
       const source = event.payload?.source;
       if (source && source === currentWindowLabelRef.current) return;
       void reloadPrompts();
@@ -158,9 +158,9 @@ export function usePromptStore() {
     return prompts.filter((p) => p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q));
   }, [prompts, search]);
 
-  const forceSave = async (): Promise<boolean> => {
+  const forceSave = useCallback(async (): Promise<boolean> => {
     return persistPrompts(promptsRef.current);
-  };
+  }, [persistPrompts]);
 
   const savePrompt = (promptId: string, content: string) => {
     updatePrompts((prev) =>

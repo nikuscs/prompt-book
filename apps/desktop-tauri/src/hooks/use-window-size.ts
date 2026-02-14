@@ -1,6 +1,6 @@
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { RefObject, useEffect, useRef, useState } from "react";
+import { RefObject, useEffect, useRef } from "react";
 import {
   WINDOW_MAIN_MAX_HEIGHT,
   WINDOW_MAIN_MIN_HEIGHT,
@@ -57,7 +57,6 @@ export function useWindowMenubarSize({
   deps: unknown[];
 }) {
   const lastHeightRef = useRef(0);
-  const [listHeight, setListHeight] = useState<number>(WINDOW_MENUBAR_LIST_MIN_HEIGHT);
 
   useEffect(() => {
     if (!enabled) return;
@@ -68,10 +67,10 @@ export function useWindowMenubarSize({
       if (!header || !listInner) return;
 
       const naturalListHeight = Math.ceil(listInner.scrollHeight);
-      const nextListHeight = Math.min(WINDOW_MENUBAR_LIST_MAX_HEIGHT, Math.max(WINDOW_MENUBAR_LIST_MIN_HEIGHT, naturalListHeight));
-      setListHeight((prev) => (Math.abs(prev - nextListHeight) > 1 ? nextListHeight : prev));
+      const clampedListHeight = Math.min(WINDOW_MENUBAR_LIST_MAX_HEIGHT, Math.max(WINDOW_MENUBAR_LIST_MIN_HEIGHT, naturalListHeight));
 
-      const desiredHeight = Math.ceil(header.offsetHeight + nextListHeight + 10);
+      // pt-1.5(6) + arrow(7) + mt-1(4) + border(2) + list-pb-2.5(10) + p-3 bottom(12) = 41
+      const desiredHeight = Math.ceil(header.offsetHeight + clampedListHeight + 41);
       const nextHeight = Math.min(WINDOW_MENUBAR_MAX_HEIGHT, Math.max(WINDOW_MENUBAR_MIN_HEIGHT, desiredHeight));
       if (Math.abs(nextHeight - lastHeightRef.current) <= 1) return;
 
@@ -88,6 +87,4 @@ export function useWindowMenubarSize({
       observer.disconnect();
     };
   }, [enabled, contentRef, headerRef, listInnerRef, ...deps]);
-
-  return { listHeight };
 }

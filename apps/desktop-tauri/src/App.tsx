@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState } from "react";
 
@@ -53,24 +54,13 @@ function App() {
 
   useEffect(() => {
     if (windowLabel !== "menubar") return;
-    let unlisten: (() => void) | null = null;
     let unlistenOpen: (() => void) | null = null;
     let mounted = true;
-    const window = getCurrentWindow();
+
     void reloadPrompts();
 
-    void window.onFocusChanged(({ payload: focused }) => {
-      if (!focused) return;
-      void reloadPrompts();
-    }).then((fn) => {
-      if (!mounted) {
-        fn();
-        return;
-      }
-      unlisten = fn;
-    });
-
-    void window.listen("menubar-opened", () => {
+    // Global event from Rust when the menubar panel is opened
+    void listen("menubar-opened", () => {
       void reloadPrompts();
     }).then((fn) => {
       if (!mounted) {
@@ -80,10 +70,18 @@ function App() {
       unlistenOpen = fn;
     });
 
+    // Fallback: reload when the WebView becomes visible (NSPanel show)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void reloadPrompts();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       mounted = false;
-      unlisten?.();
       unlistenOpen?.();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [reloadPrompts, windowLabel]);
 
@@ -151,7 +149,7 @@ function App() {
     deps: [promptStore.prompts, promptStore.search, promptStore.expandedId, promptStore.editingTitleId],
   });
 
-  const { listHeight } = useWindowMenubarSize({
+  useWindowMenubarSize({
     enabled: windowLabel === "menubar",
     contentRef: menubarContentRef,
     headerRef: menubarHeaderRef,
@@ -193,7 +191,6 @@ function App() {
         selectedId={promptStore.selectedId}
         copiedId={promptStore.copiedId}
         search={promptStore.search}
-        listHeight={listHeight}
         saveToastVisible={saveToastVisible}
         contentRef={menubarContentRef}
         headerRef={menubarHeaderRef}

@@ -181,7 +181,7 @@ export function PromptCard({
           <button className="min-w-0 flex-1 text-left" onClick={onSelect}>
             <div className="flex min-w-0 items-center gap-2">
               <span className="shrink-0 whitespace-nowrap text-[11px] font-medium">{prompt.title || UNNAMED_PROMPT_TITLE}</span>
-              <span className="min-w-0 truncate whitespace-nowrap break-normal text-[10px] text-muted-foreground">{getPromptPreview(prompt.content)}</span>
+              <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">{getPromptPreview(prompt.content)}</span>
             </div>
           </button>
           <div className="relative" ref={menuRef}>
@@ -236,7 +236,7 @@ export function PromptCard({
               contentEditable
               suppressContentEditableWarning
               spellCheck={false}
-              className="inline-block min-w-10 max-w-[280px] whitespace-nowrap px-1 text-[12px] font-medium cursor-text caret-current outline-none"
+              className="inline-block min-w-10 shrink-0 whitespace-nowrap px-1 text-[12px] font-medium cursor-text caret-current outline-none"
               onBlur={commitTitleEdit}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -252,9 +252,9 @@ export function PromptCard({
               {editingTitleValue}
             </span>
           ) : (
-            <span className="max-w-[280px] truncate whitespace-nowrap break-normal px-1 text-[12px] font-medium">{prompt.title || UNNAMED_PROMPT_TITLE}</span>
+            <span className="shrink-0 whitespace-nowrap px-1 text-[12px] font-medium">{prompt.title || UNNAMED_PROMPT_TITLE}</span>
           )}
-          <span className="min-w-0 truncate whitespace-nowrap break-normal text-[11px] text-muted-foreground">{getPromptPreview(prompt.content)}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{getPromptPreview(prompt.content)}</span>
         </div>
         <div className="relative" ref={menuRef}>
           <PromptCardActions
