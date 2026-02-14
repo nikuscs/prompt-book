@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useTauriEvent } from "@/hooks/use-tauri-event";
+import { UNNAMED_PROMPT_TITLE } from "@/lib/constants";
 import type { Prompt } from "@/types/prompt";
 
 const AUTOSAVE_DEBOUNCE_MS = 220;
@@ -52,7 +53,12 @@ export function usePromptPersistence(callbacks?: {
 
   const save = useCallback(async (data: Prompt[]): Promise<boolean> => {
     try {
-      await invoke("save_prompts", { prompts: data });
+      const hasEmpty = data.some((p) => !p.title.trim());
+      const normalized = hasEmpty
+        ? data.map((p) => (p.title.trim() ? p : { ...p, title: UNNAMED_PROMPT_TITLE }))
+        : data;
+      if (hasEmpty) updatePrompts(normalized);
+      await invoke("save_prompts", { prompts: normalized });
       return true;
     } catch (error) {
       console.error("Failed to save prompts:", error);

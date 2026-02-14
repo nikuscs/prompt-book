@@ -26,7 +26,8 @@ export function PromptCardMain({ prompt }: { prompt: Prompt }) {
   const handleCopy = () => store.copyPrompt(prompt);
 
   const commitTitleEdit = useCallback(() => {
-    const value = titleEditableRef.current?.textContent?.trim() || UNNAMED_PROMPT_TITLE;
+    const raw = titleEditableRef.current?.textContent?.replace(/\s+/g, " ").trim();
+    const value = raw || UNNAMED_PROMPT_TITLE;
     store.commitTitle(prompt.id, value);
   }, [store, prompt.id]);
 

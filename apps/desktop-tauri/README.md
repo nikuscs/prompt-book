@@ -17,14 +17,24 @@ bun run check
 
 ## Icons
 
-Regenerate app icons from the source file:
+The app icon source is `icon.icon` (Apple Icon Composer bundle).
+
+**macOS composited icon** (rounded corners, gradient, shadow):
 
 ```bash
-cd apps/desktop-tauri
-./node_modules/.bin/tauri icon ./icon.icon/Assets/logo.png
+mkdir -p /tmp/icon-build
+xcrun actool ./icon.icon --app-icon icon --compile /tmp/icon-build \
+  --output-partial-info-plist /dev/null --target-device mac \
+  --minimum-deployment-target 11.0 --platform macosx \
+  --include-all-app-icons --enable-on-demand-resources NO
+cp /tmp/icon-build/icon.icns src-tauri/icons/icon.icns
 ```
 
-This generates all platform icons (icns, ico, PNGs) into `src-tauri/icons/` from the 1024x1024 source PNG.
+**Platform icons** (ico, PNGs for Windows/Linux):
+
+```bash
+./node_modules/.bin/tauri icon ./icon.icon/Assets/logo.png
+```
 
 ## Build
 
