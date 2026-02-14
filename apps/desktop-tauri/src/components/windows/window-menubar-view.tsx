@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react";
 import type { RefObject } from "react";
 
 import { PromptList } from "@/components/prompt-list";
+import { SaveToast } from "@/components/save-toast";
 import { SearchBar } from "@/components/search-bar";
 import { Button } from "@/components/ui/button";
 import { ScrollAreaVanilla } from "@/components/ui/scroll-area-vanilla";
@@ -14,6 +15,7 @@ type WindowMenubarViewProps = {
   copiedId: string | null;
   search: string;
   listHeight: number;
+  saveToastVisible: boolean;
   contentRef: RefObject<HTMLDivElement | null>;
   headerRef: RefObject<HTMLDivElement | null>;
   listInnerRef: RefObject<HTMLDivElement | null>;
@@ -33,6 +35,7 @@ export function WindowMenubarView({
   copiedId,
   search,
   listHeight,
+  saveToastVisible,
   contentRef,
   headerRef,
   listInnerRef,
@@ -90,6 +93,7 @@ export function WindowMenubarView({
           </div>
         </div>
       </div>
+      <SaveToast visible={saveToastVisible} className="bottom-1.5" />
     </main>
   );
 }

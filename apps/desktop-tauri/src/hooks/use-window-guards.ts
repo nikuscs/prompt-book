@@ -6,11 +6,14 @@ export function useWindowGuards(onSave: () => void) {
       const isSave = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
       if (!isSave) return;
       event.preventDefault();
+      const detail = { handled: false };
+      window.dispatchEvent(new CustomEvent("promptbook:before-save", { detail }));
+      if (detail.handled) return;
       onSave();
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [onSave]);
 
   useEffect(() => {

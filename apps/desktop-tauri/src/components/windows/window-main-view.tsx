@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { PromptList } from "@/components/prompt-list";
+import { SaveToast } from "@/components/save-toast";
 import { SearchBar } from "@/components/search-bar";
 import { ScrollAreaVanilla } from "@/components/ui/scroll-area-vanilla";
 import { APP_COPYRIGHT, APP_SHORTCUTS, WINDOW_MAIN_LIST_MAX_HEIGHT } from "@/lib/constants";
@@ -17,6 +18,7 @@ type WindowMainViewProps = {
   editingTitleId: string | null;
   editingTitleValue: string;
   focusPromptRequest: { promptId: string; token: number } | null;
+  saveToastVisible: boolean;
   contentRef: RefObject<HTMLDivElement | null>;
   onSearchChange: (value: string) => void;
   onAddPrompt: () => void;
@@ -44,6 +46,7 @@ export function WindowMainView({
   editingTitleId,
   editingTitleValue,
   focusPromptRequest,
+  saveToastVisible,
   contentRef,
   onSearchChange,
   onAddPrompt,
@@ -96,6 +99,7 @@ export function WindowMainView({
           <p className="pt-0.5 text-center text-[7px] tracking-[0.08em] text-muted-foreground/45">{APP_COPYRIGHT}</p>
         </div>
       </div>
+      <SaveToast visible={saveToastVisible} />
     </main>
   );
 }

@@ -1,7 +1,7 @@
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Emitter;
-use tauri::{Manager, Position, Size, WindowEvent};
+use tauri::{EventTarget, Manager, Position, Size, WindowEvent};
 mod storage;
 use std::fs;
 use std::process::Command;
@@ -23,8 +23,28 @@ fn load_prompts() -> Result<Vec<storage::PromptRecord>, String> {
 }
 
 #[tauri::command]
-fn save_prompts(prompts: Vec<storage::PromptRecord>) -> Result<(), String> {
-    storage::save_prompts(prompts)
+fn save_prompts(
+    window: tauri::Window,
+    app: tauri::AppHandle,
+    prompts: Vec<storage::PromptRecord>,
+) -> Result<(), String> {
+    storage::save_prompts(prompts)?;
+    let payload = serde_json::json!({
+        "source": window.label()
+    });
+    // Emit directly to webview windows. Frontend uses `window.listen(...)`,
+    // which is tied to `EventTarget::webview_window(...)` delivery.
+    let _ = app.emit_to(
+        EventTarget::webview_window("main"),
+        "prompts-updated",
+        payload.clone(),
+    );
+    let _ = app.emit_to(
+        EventTarget::webview_window("menubar"),
+        "prompts-updated",
+        payload,
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -252,6 +272,7 @@ fn toggle_menubar_window(app: &tauri::AppHandle, rect: tauri::Rect) {
             }
             // macOS quirk from OpenUsage: show first, then position for multi-monitor correctness.
             panel.show_and_make_key();
+            let _ = window.emit("menubar-opened", ());
             position_menubar_at_tray_icon(app, rect.position, rect.size);
             return;
         }
@@ -264,6 +285,7 @@ fn toggle_menubar_window(app: &tauri::AppHandle, rect: tauri::Rect) {
         position_menubar_at_tray_icon(app, rect.position, rect.size);
         let _ = window.show();
         let _ = window.set_focus();
+        let _ = window.emit("menubar-opened", ());
     }
 }
 

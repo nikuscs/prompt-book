@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState } from "react";
 
@@ -18,24 +17,83 @@ type FocusPromptEditorPayload = {
 function App() {
   const [windowLabel, setWindowLabel] = useState("main");
   const [focusPromptRequest, setFocusPromptRequest] = useState<{ promptId: string; token: number } | null>(null);
+  const [saveToastVisible, setSaveToastVisible] = useState(false);
   const mainContentRef = useRef<HTMLDivElement | null>(null);
   const menubarContentRef = useRef<HTMLDivElement | null>(null);
   const menubarHeaderRef = useRef<HTMLDivElement | null>(null);
   const menubarListInnerRef = useRef<HTMLDivElement | null>(null);
+  const saveToastTimerRef = useRef<number | null>(null);
 
   const promptStore = usePromptStore();
+  const { forceSave, reloadPrompts } = promptStore;
   const { setSelectedId, setExpandedId } = promptStore;
+
+  const showSaveToast = () => {
+    setSaveToastVisible(true);
+    if (saveToastTimerRef.current !== null) {
+      window.clearTimeout(saveToastTimerRef.current);
+    }
+    saveToastTimerRef.current = window.setTimeout(() => {
+      setSaveToastVisible(false);
+      saveToastTimerRef.current = null;
+    }, 1200);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (saveToastTimerRef.current !== null) {
+        window.clearTimeout(saveToastTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setWindowLabel(getCurrentWindow().label);
   }, []);
 
   useEffect(() => {
+    if (windowLabel !== "menubar") return;
+    let unlisten: (() => void) | null = null;
+    let unlistenOpen: (() => void) | null = null;
+    let mounted = true;
+    const window = getCurrentWindow();
+    void reloadPrompts();
+
+    void window.onFocusChanged(({ payload: focused }) => {
+      if (!focused) return;
+      void reloadPrompts();
+    }).then((fn) => {
+      if (!mounted) {
+        fn();
+        return;
+      }
+      unlisten = fn;
+    });
+
+    void window.listen("menubar-opened", () => {
+      void reloadPrompts();
+    }).then((fn) => {
+      if (!mounted) {
+        fn();
+        return;
+      }
+      unlistenOpen = fn;
+    });
+
+    return () => {
+      mounted = false;
+      unlisten?.();
+      unlistenOpen?.();
+    };
+  }, [reloadPrompts, windowLabel]);
+
+  useEffect(() => {
     if (windowLabel !== "main") return;
     let unlisten: (() => void) | null = null;
     let mounted = true;
+    const window = getCurrentWindow();
 
-    void listen<FocusPromptEditorPayload>("focus-prompt-editor", (event) => {
+    void window.listen<FocusPromptEditorPayload>("focus-prompt-editor", (event) => {
       const promptId = event.payload?.promptId;
       if (!promptId) return;
       setSelectedId(promptId);
@@ -59,8 +117,33 @@ function App() {
   }, [setExpandedId, setSelectedId, windowLabel]);
 
   useWindowGuards(() => {
-    void promptStore.forceSave();
+    void forceSave().then((saved) => {
+      if (saved) showSaveToast();
+    });
   });
+
+  useEffect(() => {
+    if (windowLabel !== "main") return;
+    const window = getCurrentWindow();
+    let unlisten: (() => void) | null = null;
+    let mounted = true;
+
+    void window.onFocusChanged(({ payload: focused }) => {
+      if (focused) return;
+      void forceSave();
+    }).then((fn) => {
+      if (!mounted) {
+        fn();
+        return;
+      }
+      unlisten = fn;
+    });
+
+    return () => {
+      mounted = false;
+      unlisten?.();
+    };
+  }, [forceSave, windowLabel]);
 
   useWindowMainSize({
     enabled: windowLabel === "main",
@@ -96,8 +179,11 @@ function App() {
   };
 
   const commitPromptTitle = (promptId: string, value: string) => {
-    promptStore.savePromptTitle(promptId, value);
+    const normalized = value.trim() || UNNAMED_PROMPT_TITLE;
     promptStore.setEditingTitleId(null);
+    void promptStore.savePromptTitleNow(promptId, normalized).then((saved) => {
+      if (saved) showSaveToast();
+    });
   };
 
   if (windowLabel === "menubar") {
@@ -108,6 +194,7 @@ function App() {
         copiedId={promptStore.copiedId}
         search={promptStore.search}
         listHeight={listHeight}
+        saveToastVisible={saveToastVisible}
         contentRef={menubarContentRef}
         headerRef={menubarHeaderRef}
         listInnerRef={menubarListInnerRef}
@@ -136,6 +223,7 @@ function App() {
       editingTitleId={promptStore.editingTitleId}
       editingTitleValue={promptStore.editingTitleValue}
       focusPromptRequest={focusPromptRequest}
+      saveToastVisible={saveToastVisible}
       contentRef={mainContentRef}
       onSearchChange={promptStore.setSearch}
       onAddPrompt={promptStore.addPrompt}

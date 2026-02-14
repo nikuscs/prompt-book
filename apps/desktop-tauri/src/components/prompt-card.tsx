@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { PromptCardActions } from "@/components/prompt-card-actions";
@@ -80,6 +80,7 @@ export function PromptCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const titleEditableRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -127,6 +128,11 @@ export function PromptCard({
       }
     : undefined;
 
+  const commitTitleEdit = useCallback(() => {
+    const value = titleEditableRef.current?.textContent?.trim() || UNNAMED_PROMPT_TITLE;
+    onCommitTitle?.(value);
+  }, [onCommitTitle]);
+
   const onCopyShortcut = (event: React.KeyboardEvent<HTMLElement>) => {
     const isCopy = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c";
     if (!isCopy) return;
@@ -135,6 +141,33 @@ export function PromptCard({
     event.stopPropagation();
     onCopy();
   };
+
+  useEffect(() => {
+    if (!editingTitle || !titleEditableRef.current) return;
+    const onPointerDownCapture = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (titleEditableRef.current?.contains(target)) return;
+      commitTitleEdit();
+    };
+
+    window.addEventListener("pointerdown", onPointerDownCapture, true);
+    return () => window.removeEventListener("pointerdown", onPointerDownCapture, true);
+  }, [commitTitleEdit, editingTitle]);
+
+  useEffect(() => {
+    if (!editingTitle) return;
+    const onBeforeSave = (event: Event) => {
+      const custom = event as CustomEvent<{ handled?: boolean }>;
+      commitTitleEdit();
+      if (custom.detail) {
+        custom.detail.handled = true;
+      }
+    };
+
+    window.addEventListener("promptbook:before-save", onBeforeSave);
+    return () => window.removeEventListener("promptbook:before-save", onBeforeSave);
+  }, [commitTitleEdit, editingTitle]);
 
   if (variant === "menubar") {
     return (
@@ -199,15 +232,16 @@ export function PromptCard({
         >
           {editingTitle ? (
             <span
+              ref={titleEditableRef}
               contentEditable
               suppressContentEditableWarning
               spellCheck={false}
               className="inline-block min-w-10 max-w-[280px] whitespace-nowrap px-1 text-[12px] font-medium cursor-text caret-current outline-none"
-              onBlur={(event) => onCommitTitle?.(event.currentTarget.textContent?.trim() || UNNAMED_PROMPT_TITLE)}
+              onBlur={commitTitleEdit}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  event.currentTarget.blur();
+                  commitTitleEdit();
                 }
                 if (event.key === "Escape") {
                   event.preventDefault();
