@@ -63,17 +63,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     outputs:
       version: ${{ steps.bump.outputs.version }}
       tag: ${{ steps.bump.outputs.tag }}
-      bump_branch: ${{ steps.commit.outputs.bump_branch }}
+      commit_sha: ${{ steps.commit.outputs.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PAT }}
 
       - name: Verify main branch
         run: |
@@ -127,31 +126,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          BUMP_BRANCH="release/${{ steps.bump.outputs.version }}"
-          git checkout -b "$BUMP_BRANCH"
-          echo "bump_branch=$BUMP_BRANCH" >> $GITHUB_OUTPUT
-
           git add apps/desktop-tauri/src-tauri/Cargo.toml apps/desktop-tauri/src-tauri/tauri.conf.json apps/desktop-tauri/package.json
           git commit -m "chore: bump version to ${{ steps.bump.outputs.version }}"
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
           # Remove stale tag from a previous failed release if it exists
           git tag -d "${{ steps.bump.outputs.tag }}" 2>/dev/null || true
           git push --delete origin "${{ steps.bump.outputs.tag }}" 2>/dev/null || true
 
           git tag -a "${{ steps.bump.outputs.tag }}" -m "Release ${{ steps.bump.outputs.tag }}"
-          git push origin "$BUMP_BRANCH" --follow-tags
-
-      - name: Create version bump PR
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr create \
-            --title "chore: bump version to ${{ steps.bump.outputs.version }}" \
-            --body "Automated version bump for release ${{ steps.bump.outputs.tag }}" \
-            --base main \
-            --head "${{ steps.commit.outputs.bump_branch }}"
+          git push origin main --follow-tags
 
   build-and-release:
     name: Build and Release (macOS)
@@ -226,29 +210,6 @@ jobs:
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
 
-  merge-bump:
-    name: Merge version bump
-    needs: [create-tag, build-and-release]
-    if: success()
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Merge version bump PR
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BUMP_BRANCH="${{ needs.create-tag.outputs.bump_branch }}"
-          PR_NUMBER=$(gh pr list --head "$BUMP_BRANCH" --repo "${{ github.repository }}" --json number --jq '.[0].number' 2>/dev/null) || true
-          if [ -n "$PR_NUMBER" ]; then
-            gh pr merge "$PR_NUMBER" --squash --delete-branch --repo "${{ github.repository }}" --admin || \
-              echo "::warning::Could not auto-merge version bump PR #$PR_NUMBER. Merge it manually."
-          else
-            echo "::warning::No version bump PR found. Create one manually from branch $BUMP_BRANCH."
-          fi
-
   cleanup:
     name: Cleanup on failure
     needs: [create-tag, build-and-release]
@@ -256,24 +217,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
-      - name: Cleanup failed release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Delete tag and revert commit
         run: |
-          REPO="${{ github.repository }}"
-          TAG="${{ needs.create-tag.outputs.tag }}"
-          BUMP_BRANCH="${{ needs.create-tag.outputs.bump_branch }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Delete the tag
-          gh api -X DELETE "repos/$REPO/git/refs/tags/$TAG" 2>/dev/null || true
+          git push --delete origin ${{ needs.create-tag.outputs.tag }} || true
 
-          # Close the version bump PR and delete the branch
-          if [ -n "$BUMP_BRANCH" ]; then
-            PR_NUMBER=$(gh pr list --head "$BUMP_BRANCH" --repo "$REPO" --json number --jq '.[0].number' 2>/dev/null) || true
-            if [ -n "$PR_NUMBER" ]; then
-              gh pr close "$PR_NUMBER" --delete-branch --repo "$REPO" || true
-            fi
-            gh api -X DELETE "repos/$REPO/git/refs/heads/$BUMP_BRANCH" 2>/dev/null || true
-          fi
+          git pull origin main
+          git revert ${{ needs.create-tag.outputs.commit_sha }} --no-edit
+          git push origin main
