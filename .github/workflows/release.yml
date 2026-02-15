@@ -129,6 +129,11 @@ jobs:
           git add apps/desktop-tauri/src-tauri/Cargo.toml apps/desktop-tauri/src-tauri/tauri.conf.json apps/desktop-tauri/package.json
           git commit -m "chore: bump version to ${{ steps.bump.outputs.version }}"
           echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+          # Remove stale tag from a previous failed release if it exists
+          git tag -d "${{ steps.bump.outputs.tag }}" 2>/dev/null || true
+          git push --delete origin "${{ steps.bump.outputs.tag }}" 2>/dev/null || true
+
           git tag -a "${{ steps.bump.outputs.tag }}" -m "Release ${{ steps.bump.outputs.tag }}"
           git push origin main --follow-tags
 
