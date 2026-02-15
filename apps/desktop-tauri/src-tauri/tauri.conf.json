@@ -49,6 +49,12 @@
     }
   },
   "bundle": {
+    "macOS": {
+      "signingIdentity": "Developer ID Application: Grove OU (RJ3GB6YDXL)",
+      "notarize": {
+	"keychainProfile": "notarytool-profile"
+	}
+    },
     "active": true,
     "targets": ["app", "dmg"],
     "createUpdaterArtifacts": false,
