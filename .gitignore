@@ -1,0 +1,35 @@
+.DS_Store
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.derivedData/
+.buildtmp/
+.swift-module-cache/
+tmp-icons/
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.netrc
+
+# JS/monorepo
+node_modules/
+**/node_modules/
+.turbo/
+
+# Frontend build output
+dist/
+**/dist/
+build/
+**/build/
+
+# Tauri/Rust
+target/
+**/target/
+
+# Editor/OS
+.vscode/
+.idea/
+.claude/
+.cursor/
+.codex
+.roocode
