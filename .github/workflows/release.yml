@@ -17,8 +17,7 @@ concurrency:
   group: release
   cancel-in-progress: false
 
-permissions:
-  contents: write
+permissions: {}
 
 env:
   CARGO_TERM_COLOR: always
@@ -27,6 +26,8 @@ jobs:
   checks:
     name: Checks
     runs-on: macos-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +61,8 @@ jobs:
     name: Create Tag
     needs: checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.bump.outputs.version }}
       tag: ${{ steps.bump.outputs.tag }}
@@ -133,6 +136,9 @@ jobs:
     name: Build and Release (macOS)
     needs: create-tag
     runs-on: macos-latest
+    environment: release
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -201,6 +207,8 @@ jobs:
     needs: [create-tag, build-and-release]
     if: failure() && needs.create-tag.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4

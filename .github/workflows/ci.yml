@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: [main]
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -17,6 +19,8 @@ jobs:
   quality:
     name: Lint + Typecheck + Rust Fmt
     runs-on: macos-latest
+    permissions:
+      contents: read
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
     steps:
       - name: Checkout
