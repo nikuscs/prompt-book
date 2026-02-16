@@ -67,6 +67,7 @@ jobs:
       version: ${{ steps.bump.outputs.version }}
       tag: ${{ steps.bump.outputs.tag }}
       commit_sha: ${{ steps.commit.outputs.sha }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -113,6 +114,25 @@ jobs:
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            LOG=$(git log --pretty=format:"- %s" --no-merges)
+          else
+            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --no-merges)
+          fi
+          # Filter out chore: bump commits
+          LOG=$(echo "$LOG" | grep -v "^- chore: bump version" || true)
+          if [ -z "$LOG" ]; then
+            LOG="- Maintenance and bug fixes"
+          fi
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "changelog<<$EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
 
       - name: Update version files
         run: |
@@ -191,7 +211,9 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: ${{secrets.APPLE_SIGNING_IDENTITY}}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -199,7 +221,8 @@ jobs:
           tagName: ${{ needs.create-tag.outputs.tag }}
           releaseName: PromptBook v__VERSION__
           releaseBody: |
-            Desktop release for PromptBook.
+            ## What's changed
+            ${{ needs.create-tag.outputs.changelog }}
           releaseDraft: false
           prerelease: false
           projectPath: apps/desktop-tauri
