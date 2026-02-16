@@ -55,7 +55,7 @@
     },
     "active": true,
     "targets": ["app", "dmg"],
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -66,7 +66,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENFOUQzRkQxRjc1MjQwQkMKUldTOFFGTDMwVCtkem1EUWx4UGhxR0lDcXNRdWUwRkxkc2NCVDRVZXAxVUFoMWtHQy83WDcxRWUK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRFMEQyNjlFQzlGMjlCRjUKUldUMW0vTEpuaVlOVGxGSGkyTW40cGtiSy92UGJiOEEreWcvQmgwQVc3d3dpVllXbkhGTWd6YXEK",
       "endpoints": [
         "https://github.com/nikuscs/prompt-book/releases/latest/download/latest.json"
       ]

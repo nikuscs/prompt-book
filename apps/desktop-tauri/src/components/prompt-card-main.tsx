@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Check, ChevronDown, Copy, EllipsisVertical, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Copy, EllipsisVertical, GripVertical, Trash2 } from "lucide-react";
 
 import { PromptCardMenu } from "@/components/prompt-card-menu";
 import { getPromptPreview, hasSelectedText } from "@/components/prompt-card-utils";
@@ -9,11 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePromptStoreContext } from "@/contexts/prompt-store-context";
 import { usePromptCardMenu } from "@/hooks/use-prompt-card-menu";
 import { UNNAMED_PROMPT_TITLE } from "@/lib/constants";
+import type { DragHandleProps } from "@/types/drag";
 import type { Prompt } from "@/types/prompt";
 
-export function PromptCardMain({ prompt }: { prompt: Prompt }) {
+export function PromptCardMain({ prompt, dragHandle }: { prompt: Prompt; dragHandle?: DragHandleProps }) {
   const store = usePromptStoreContext();
-  const { menuOpen, menuRef, toggleMenu, closeMenu } = usePromptCardMenu();
+  const { menuOpen, menuRef, portalRef, toggleMenu, closeMenu } = usePromptCardMenu();
   const cardRef = useRef<HTMLDivElement>(null);
   const titleEditableRef = useRef<HTMLSpanElement>(null);
 
@@ -77,6 +78,15 @@ export function PromptCardMain({ prompt }: { prompt: Prompt }) {
   return (
     <div ref={cardRef} className="rounded-lg border border-border bg-card" onKeyDownCapture={handleCopyShortcut}>
       <div className="flex items-center gap-1.5 px-2.5 py-1.5">
+        {dragHandle && !isExpanded ? (
+          <div
+            ref={dragHandle.ref}
+            {...dragHandle.listeners}
+            className="flex shrink-0 cursor-grab items-center touch-none active:cursor-grabbing"
+          >
+            <GripVertical className="size-3.5 text-muted-foreground/40" />
+          </div>
+        ) : null}
         <Button size="icon-xs" variant="ghost" className="size-6 rounded-sm text-muted-foreground" onClick={() => store.toggleExpanded(prompt.id)}>
           <ChevronDown className={`size-3.5 text-muted-foreground transition ${isExpanded ? "rotate-180" : ""}`} />
         </Button>
@@ -169,6 +179,8 @@ export function PromptCardMain({ prompt }: { prompt: Prompt }) {
           </ButtonGroup>
           <PromptCardMenu
             open={menuOpen}
+            triggerRef={menuRef}
+            portalRef={portalRef}
             onOpenInEditor={(editor) => {
               store.openInEditor(prompt, editor);
               closeMenu();

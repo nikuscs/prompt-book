@@ -128,6 +128,10 @@ export function usePromptStore() {
     setTimeout(() => setDeleteConfirmId((prev) => (prev === id ? null : prev)), DELETE_CONFIRM_TIMEOUT_MS);
   };
 
+  const reorderPrompts = (reordered: Prompt[]) => {
+    updatePrompts(reordered);
+  };
+
   const openPromptInEditor = async (prompt: Prompt, editor: "cursor" | "vscode" | "zed") => {
     try {
       await invoke("open_prompt_in_editor", { editor, title: prompt.title, content: prompt.content });
@@ -169,6 +173,7 @@ export function usePromptStore() {
     copyPrompt,
     deletePrompt,
     requestDeleteConfirm,
+    reorderPrompts,
     openPromptInEditor,
     copyPromptPath,
     reloadPrompts,
