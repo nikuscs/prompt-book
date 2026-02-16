@@ -16,6 +16,7 @@ export type PromptStoreContextType = {
   addPrompt: () => string;
   selectPrompt: (id: string) => void;
   toggleExpanded: (id: string) => void;
+  reorderPrompts: (reordered: Prompt[]) => void;
   copyPrompt: (prompt: Prompt) => void;
   changeContent: (id: string, value: string) => void;
   startEditTitle: (prompt: Prompt) => void;

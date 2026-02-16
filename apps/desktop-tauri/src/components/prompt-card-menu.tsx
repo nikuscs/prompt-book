@@ -1,21 +1,54 @@
-import { Pencil } from "lucide-react";
+import { type RefObject, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Pencil, Trash2 } from "lucide-react";
 
 import { IconCopyPath, IconCursor, IconVscode, IconZed } from "@/components/icons";
 
 type PromptCardMenuProps = {
   open: boolean;
+  triggerRef: RefObject<HTMLDivElement | null>;
+  portalRef: RefObject<HTMLDivElement | null>;
   onEdit?: () => void;
+  onDelete?: () => void;
+  deleteConfirm?: boolean;
   onOpenInEditor: (editor: "cursor" | "vscode" | "zed") => void;
   onCopyPath: () => void;
 };
 
-export function PromptCardMenu({ open, onEdit, onOpenInEditor, onCopyPath }: PromptCardMenuProps) {
+export function PromptCardMenu({ open, triggerRef, portalRef, onEdit, onDelete, deleteConfirm, onOpenInEditor, onCopyPath }: PromptCardMenuProps) {
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!open || !triggerRef.current || !el) return;
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const menuHeight = el.offsetHeight;
+    const menuWidth = el.offsetWidth;
+    const spaceBelow = window.innerHeight - triggerRect.bottom;
+
+    const top = spaceBelow >= menuHeight + 6
+      ? triggerRect.bottom + 6
+      : triggerRect.top - menuHeight - 6;
+    const left = Math.max(4, triggerRect.right - menuWidth);
+
+    el.style.top = `${top}px`;
+    el.style.left = `${left}px`;
+    el.style.visibility = "visible";
+  }, [open, triggerRef]);
+
   if (!open) return null;
 
   const itemClass = "flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-xs hover:bg-accent";
 
-  return (
-    <div className="absolute right-0 z-30 mt-1.5 w-44 rounded-md border border-input bg-popover p-1 shadow-lg">
+  return createPortal(
+    <div
+      ref={(node) => {
+        innerRef.current = node;
+        if (typeof portalRef === "object" && portalRef) portalRef.current = node;
+      }}
+      className="fixed z-30 w-44 rounded-md border border-input bg-popover p-1 shadow-lg"
+      style={{ visibility: "hidden" }}
+    >
       {onEdit ? (
         <button className={itemClass} onClick={onEdit}>
           <Pencil className="size-3.5" />
@@ -38,6 +71,13 @@ export function PromptCardMenu({ open, onEdit, onOpenInEditor, onCopyPath }: Pro
         <IconCopyPath className="size-3.5" />
         <span className="truncate whitespace-nowrap">Copy Path</span>
       </button>
-    </div>
+      {onDelete ? (
+        <button className={`${itemClass} text-destructive hover:text-destructive`} onClick={onDelete}>
+          <Trash2 className="size-3.5" />
+          <span className="truncate whitespace-nowrap">{deleteConfirm ? "Sure? Delete" : "Delete"}</span>
+        </button>
+      ) : null}
+    </div>,
+    document.body,
   );
 }

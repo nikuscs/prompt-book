@@ -146,6 +146,7 @@ function App() {
     editingTitleId: store.editingTitleId,
     editingTitleValue: store.editingTitleValue,
     focusPromptRequest,
+    reorderPrompts: store.reorderPrompts,
     setSearch: store.setSearch,
     addPrompt: store.addPrompt,
     selectPrompt: store.selectPrompt,
